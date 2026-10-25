@@ -118,7 +118,7 @@ export async function runApiSuite(base, restart) {
     assert.equal(next.players[0].id,friend);assert.equal(next.players[0].name,'Integration Friend');assert.notEqual(next.code,code);assert.equal((await api(host,null,code)).history.length,8);
     assert.equal((await api(friend,commandEnvelope({type:'join',code,name:'Existing friend'}))).phase,'closed');
     await api(friend,commandEnvelope({type:'end',code:next.code},next));
-    const logout=await request(new URL('/api/logout',base),{method:'POST',headers:{Cookie:cookies.get(host),'Content-Type':'application/json'},body:'{}'});assert.equal(logout.status,200);
+    const logout=await request(new URL('/api/logout',base),{method:'POST',headers:{Cookie:cookies.get(host),'Content-Type':'application/json'},body:'{}'});assert.equal(logout.status,200);await logout.arrayBuffer();
     await assert.rejects(api(host,null,code),/sign in/);
     console.log('PIN multiplayer passed: fixed roster, cookie identity, shared lobby, private push, device recovery, PIN change/revocation, retries, restart, 8 hands, 3 variants, independent alarm and retained sessions.');
   } finally { peers.forEach(s=>s.terminate()); }

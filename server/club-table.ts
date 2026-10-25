@@ -70,6 +70,7 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
         if(!player)return json({error:'Please sign in with your name and PIN',code:'LOGIN_REQUIRED'},401);
         const token=player.id;
         if(url.pathname==='/api/logout' && request.method==='POST') {
+          if(request.body)await this.body(request);
           await this.auth.logout(request);await this.broadcast();
           return json({ok:true},200,{'Set-Cookie':sessionCookie('',url.protocol==='https:',0)});
         }
