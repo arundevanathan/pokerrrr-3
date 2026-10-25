@@ -3,6 +3,7 @@ import WebSocket from 'ws';
 import { pathToFileURL } from 'node:url';
 import { commandEnvelope, PROTOCOL_VERSION } from '../lib/protocol/poker.mjs';
 import { testPlayers } from './player-fixtures.mjs';
+const request=(url,options={})=>fetch(url,{...options,signal:AbortSignal.timeout(10_000)});
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export function localTarget(base) {
   const url = new URL(base);
@@ -12,11 +13,11 @@ export function localTarget(base) {
 export async function runApiSuite(base, restart) {
   localTarget(base);
   const [host,friend,observer]=testPlayers.map(p=>p.id),cookies=new Map();
-  const denied=await fetch(new URL('/api/poker',base));assert.equal(denied.status,401);
-  const cross=await fetch(new URL('/api/login',base),{method:'POST',headers:{Origin:'https://other.test','Content-Type':'application/json'},body:JSON.stringify({playerId:host,pin:'0123'})});assert.equal(cross.status,403);
-  const roster=await (await fetch(new URL('/api/players',base))).json();assert.equal(roster.players.length,3);assert.ok(!JSON.stringify(roster).includes('pin_hash'));
+  const denied=await request(new URL('/api/poker',base));assert.equal(denied.status,401);
+  const cross=await request(new URL('/api/login',base),{method:'POST',headers:{Origin:'https://other.test','Content-Type':'application/json'},body:JSON.stringify({playerId:host,pin:'0123'})});assert.equal(cross.status,403);
+  const roster=await (await request(new URL('/api/players',base))).json();assert.equal(roster.players.length,3);assert.ok(!JSON.stringify(roster).includes('pin_hash'));
   async function login(id,pin){
-    const result=await fetch(new URL('/api/login',base),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({playerId:id,pin})});
+    const result=await request(new URL('/api/login',base),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({playerId:id,pin})});
     assert.equal(result.status,200);cookies.set(id,result.headers.get('set-cookie').split(';')[0]);return result.json();
   }
   for(const p of testPlayers)await login(p.id,p.pin);
@@ -31,7 +32,7 @@ export async function runApiSuite(base, restart) {
     assert.equal(status,headers.Cookie?403:401);
   }
   async function api(token, input, code) {
-    const res = await fetch(new URL(input ? '/api/poker' : `/api/poker?code=${code}`, base), {method:input?'POST':'GET',headers:{Cookie:cookies.get(token),...(input&&{'Content-Type':'application/json'})},...(input&&{body:JSON.stringify(input)})});
+    const res = await request(new URL(input ? '/api/poker' : `/api/poker?code=${code}`, base), {method:input?'POST':'GET',headers:{Cookie:cookies.get(token),...(input&&{'Content-Type':'application/json'})},...(input&&{body:JSON.stringify(input)})});
     const data = await res.json();
     if (!res.ok) throw Object.assign(new Error(`${res.status}: ${data.error}`), {status:res.status});
     return data;
@@ -46,7 +47,7 @@ export async function runApiSuite(base, restart) {
   const peers=[];
   async function peer(token) {
     const messages=[];
-    const socket=new WebSocket(new URL('/api/poker/socket',base).href.replace('http:','ws:'),{headers:{Cookie:cookies.get(token),Origin:new URL(base).origin}});
+    const socket=new WebSocket(new URL('/api/poker/socket',base).href.replace('http:','ws:'),{handshakeTimeout:10_000,headers:{Cookie:cookies.get(token),Origin:new URL(base).origin}});
     peers.push(socket);
     socket.on('message',value=>messages.push(JSON.parse(value.toString())));
     await new Promise((resolve,reject)=>{socket.once('open',resolve);socket.once('error',reject)});
@@ -60,6 +61,7 @@ export async function runApiSuite(base, restart) {
     const unseated=await peer(observer);
     assert.equal(unseated.messages[0].room,null);assert.equal(unseated.messages[0].lobby.activeGame.code,code);
     const h=await peer(host), f=await peer(friend);
+    console.log('Verified player login, shared lobby and private socket snapshots.');
     const reload=commandEnvelope({type:'rebuy',code,amount:100},room);
     const accepted=await api(host,reload); const retried=await api(host,reload);
     assert.deepEqual(accepted.ack,retried.ack);assert.equal(retried.players.find(p=>p.id===host).buyins,1100);
@@ -72,9 +74,9 @@ export async function runApiSuite(base, restart) {
     const liveHost=restart?await peer(host):h, liveFriend=restart?await peer(friend):f,liveObserver=restart?await peer(observer):unseated;
     const oldCookie=cookies.get(host);
     await login(host,'0123');const secondDevice=cookies.get(host),otherDevice=await peer(host);
-    const changed=await fetch(new URL('/api/pin',base),{method:'POST',headers:{Cookie:oldCookie,'Content-Type':'application/json'},body:JSON.stringify({currentPin:'0123',newPin:'0042'})});
+    const changed=await request(new URL('/api/pin',base),{method:'POST',headers:{Cookie:oldCookie,'Content-Type':'application/json'},body:JSON.stringify({currentPin:'0123',newPin:'0042'})});
     assert.equal(changed.status,200);assert.notEqual(secondDevice,oldCookie);cookies.set(host,changed.headers.get('set-cookie').split(';')[0]);
-    const revoked=await (await fetch(new URL('/api/session',base),{headers:{Cookie:secondDevice}})).json();assert.equal(revoked.player,null);
+    const revoked=await (await request(new URL('/api/session',base),{headers:{Cookie:secondDevice}})).json();assert.equal(revoked.player,null);
     await waitFor(()=>otherDevice.socket.readyState!==WebSocket.OPEN);assert.equal(liveHost.socket.readyState,WebSocket.OPEN);
     const resumed=await login(host,'0042');assert.equal(resumed.player.id,host);
     assert.equal((await api(host,null,code)).me,host);
@@ -116,7 +118,7 @@ export async function runApiSuite(base, restart) {
     assert.equal(next.players[0].id,friend);assert.equal(next.players[0].name,'Integration Friend');assert.notEqual(next.code,code);assert.equal((await api(host,null,code)).history.length,8);
     assert.equal((await api(friend,commandEnvelope({type:'join',code,name:'Existing friend'}))).phase,'closed');
     await api(friend,commandEnvelope({type:'end',code:next.code},next));
-    const logout=await fetch(new URL('/api/logout',base),{method:'POST',headers:{Cookie:cookies.get(host),'Content-Type':'application/json'},body:'{}'});assert.equal(logout.status,200);
+    const logout=await request(new URL('/api/logout',base),{method:'POST',headers:{Cookie:cookies.get(host),'Content-Type':'application/json'},body:'{}'});assert.equal(logout.status,200);
     await assert.rejects(api(host,null,code),/sign in/);
     console.log('PIN multiplayer passed: fixed roster, cookie identity, shared lobby, private push, device recovery, PIN change/revocation, retries, restart, 8 hands, 3 variants, independent alarm and retained sessions.');
   } finally { peers.forEach(s=>s.terminate()); }
