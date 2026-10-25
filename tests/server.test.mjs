@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TableService, nextDeadline } from '../server/table-service.mjs';
 import { commandEnvelope, parseCommand } from '../lib/protocol/poker.mjs';
-import { accessCookie, hasAccess, matchesAccessKey } from '../server/access.mjs';
 
 class MemoryStorage {
   values = new Map(); alarm = null; queue = Promise.resolve();
@@ -29,19 +28,6 @@ async function fixture(count = 2) {
   };
   return { storage, service, players, code: room.code, send };
 }
-
-test('club cookie is HttpOnly, signed, expiring and invalidated by code rotation', async () => {
-  const secret = 'private-disposable-test-code';
-  assert.equal(await matchesAccessKey(secret, secret), true);
-  assert.equal(await matchesAccessKey('wrong', secret), false);
-  const cookie = await accessCookie(secret, true, 1000);
-  assert.match(cookie, /HttpOnly; SameSite=Strict/); assert.match(cookie, /Secure/);
-  const request = new Request('https://club.test', { headers: { Cookie: cookie.split(';')[0] } });
-  assert.equal(await hasAccess(request, secret, 1001), true);
-  assert.equal(await hasAccess(request, 'rotated', 1001), false);
-  assert.equal(await hasAccess(request, secret, 40 * 86400000), false);
-  assert.equal(await hasAccess(new Request('https://club.test', { headers: { Cookie: cookie.replace(/\.[a-f0-9]{64}/, '.bad').split(';')[0] } }), secret, 1001), false);
-});
 
 test('wire protocol rejects unknown actions, extra fields and missing concurrency guards', () => {
   assert.throws(() => parseCommand({ type: 'create' }));

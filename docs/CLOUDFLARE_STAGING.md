@@ -17,8 +17,9 @@ command ID, state version and hand ID. Writes are acknowledged only after storag
 
 ## Local verification
 
-Use Node >=22.13.0 and the packageManager pnpm version. Copy `.dev.vars.example`
-to ignored `.dev.vars` and choose a long local club access code for manual testing.
+Use Node >=22.13.0 and the packageManager pnpm version. No auth secret or
+`.dev.vars` is required. Players are inserted into the coordinator's SQLite
+`players` table; see [PLAYERS.md](PLAYERS.md).
 
 ```sh
 pnpm test
@@ -29,7 +30,7 @@ pnpm check:staging
 pnpm test:staging:smoke
 ```
 
-The automated smoke test supplies its own disposable access code and database,
+The automated smoke test supplies its own disposable player accounts and database,
 checks HTTP and private WebSocket updates, restarts the server against that same
 local database, waits for a server alarm without client requests, then cleans up.
 It refuses remote URLs. Use `pnpm dev:staging` for HMR or `pnpm preview:staging`
@@ -37,20 +38,20 @@ for the built Worker. Local testing does not provision or migrate remote storage
 
 ## Deployment preparation (separate from local implementation)
 
-This change adds a **new** `ClubTable` namespace via the `dunzo-club-v1`
-`new_sqlite_classes` migration. Review namespace creation before publishing.
+The existing `ClubTable` namespace was introduced by the `dunzo-club-v1`
+`new_sqlite_classes` migration. Keep that namespace and migration unchanged.
 There is no automatic import from the original Site/D1 database. No D1, R2,
 connector or production bindings are allowed in the staging artifact. Never
 repurpose a real player's historical balance as staging test data.
 
-Before an approved staging release, configure a long, private `CLUB_ACCESS_KEY`
-Worker secret using the Cloudflare dashboard (Settings → Variables and Secrets).
-Do not place it in Git, public `NEXT_PUBLIC_*` values, build logs or ordinary vars.
-Without the secret, game/access endpoints fail closed with 503 and the health
-endpoint reports `multiplayerReady: false`; browser practice remains available.
-Share the access code only with the group. It grants group access, not an
-individual account. Rotate it to invalidate existing access cookies; existing
-player seat credentials should still be kept private.
+Player authentication uses the existing namespace, with additive `players` and
+`player_sessions` SQL tables initialized when the object starts. There is no new
+namespace or binding migration for PIN login. Existing game/history keys stay
+unchanged. `CLUB_ACCESS_KEY` is no longer read; an old configured value can be
+removed later. Legacy access cookies and browser bearer IDs no longer authorize
+requests. Provision player records before inviting anyone to sign in. If an old
+game exists, follow the identity-mapping notes in [PLAYERS.md](PLAYERS.md) before
+creating fresh player IDs. No live records are modified by a local build.
 
 Cloudflare build configuration:
 
@@ -76,12 +77,12 @@ must be separately provisioned; never rename this staging namespace to productio
 
 - `/api/health`: app `Dunzo Club`, environment `staging`, expected commit,
   `mode: multiplayer`, and actual `multiplayerReady`.
-- Lobby/installed app show Dunzo Club. Create/join require the club access code;
-  unrelated origins and requests without a valid access cookie are rejected.
+- Lobby/installed app show Dunzo Club. Sign-in requires an enabled player and their four-digit PIN;
+  unrelated origins and requests without a valid player session are rejected.
 - Two independent browser profiles can join, see only their own cards, act,
   refresh/resume and see synchronized versioned state.
 - Only one session can be active. End it between hands, start a new one and reopen
-  the old room with its original member identity; its results must remain.
+  the old session with its original player identity; its results must remain.
 - Test phones backgrounded, offline/reconnected and a server restart before real
   use. Confirm all chips and final cash-outs reconcile.
 
@@ -92,10 +93,11 @@ restoration procedures remain issue #15. Keep the immutable source history bundl
 
 ## Remaining limits
 
-Browser-local bearer identity does not recover across cleared site data or new
-devices. Individual accounts, host transfer and a one-active-device policy are
-future work. The current UI shows the latest 100 hands; the server separately
-archives every completed hand. Weekly cross-session aggregation, partial external
-payments, audited corrections and archive export/reconciliation remain issues
-#4–#6, #10 and #15. No claim of full production acceptance is made by a passing
-local smoke suite.
+There is no public registration or admin API. The owner adds/enables/disables
+players directly in the database. PIN recovery/reset is an owner database operation.
+Host transfer and a one-active-device policy remain future work. Multiple devices
+signed into the same player currently share control of that player's seat.
+The current UI shows the latest 100 hands; the server archives every completed hand.
+Weekly cross-session aggregation, partial external payments, audited corrections
+and archive export/reconciliation remain follow-up work. No claim of full production
+acceptance is made by a passing local smoke suite.

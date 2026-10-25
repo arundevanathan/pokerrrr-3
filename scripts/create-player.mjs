@@ -1,0 +1,17 @@
+import { randomUUID } from 'node:crypto';
+import { createInterface } from 'node:readline';
+import { Writable } from 'node:stream';
+import { hashPin } from '../server/player-auth.mjs';
+import { playerToken } from '../lib/protocol/poker.mjs';
+const args=process.argv.slice(2);
+const value=flag=>{const at=args.indexOf(flag);return at<0?undefined:args[at+1]};
+const name=value('--name')?.trim(),id=value('--id')||randomUUID();
+if(args.length%2||!name||name.length>24||args.some((v,i)=>i%2===0&&!['--name','--id'].includes(v)))throw new Error('Usage: node scripts/create-player.mjs --name "Player name" [--id existing-player-UUID]');
+playerToken.parse(id);
+process.stderr.write('Initial 4-digit PIN (hidden): ');
+const silent=new Writable({write(_chunk,_encoding,done){done()}});
+const reader=createInterface({input:process.stdin,output:silent,terminal:Boolean(process.stdin.isTTY)});
+const pin=await new Promise(resolve=>{reader.once('line',resolve);reader.once('close',()=>resolve(''))});reader.close();process.stderr.write('\n');
+const {salt,hash}=await hashPin(pin);
+const quote=text=>`'${text.replaceAll("'","''")}'`;
+console.log(`INSERT INTO players (id,name,pin_salt,pin_hash) VALUES (${[id,name,salt,hash].map(quote).join(',')});`);

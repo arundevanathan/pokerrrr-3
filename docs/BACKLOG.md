@@ -31,9 +31,9 @@ Current clients poll once a second, or every 200ms during voting/showdown. Push 
 
 ## [W04 / #4](https://github.com/arundevanathan/pokerrrr-3/issues/4) — P0: Add persistent player authentication and group access
 
-Browser-local bearer identity cannot reliably recover a seat after browser data is cleared or a device is replaced. Members should stay signed in across normal app launches.
+Use an owner-managed static roster and individual four-digit PINs. Stable player IDs must recover a seat across devices, and signed-in sessions must survive normal app launches.
 
-- [ ] Choose and document the login provider and private-group invitation/allowlist flow.
+- [ ] Document the fixed player roster, PIN login/change, owner PIN resets and database provisioning flow.
 - [ ] Use stable user IDs and securely persisted, refreshable sessions; avoid reauthentication on every visit while credentials remain valid.
 - [ ] Support explicit logout, session revocation and account recovery; expired/revoked sessions can require login.
 - [ ] Map existing player/session records to stable identities without changing balances; prevent impersonation and duplicate occupied seats.

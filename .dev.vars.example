@@ -1,2 +1,0 @@
-# Copy to .dev.vars for local testing. Never commit a real club access code.
-CLUB_ACCESS_KEY="replace-with-a-long-private-club-access-code"

@@ -12,17 +12,21 @@ Durable Object. It serializes commands, saves state and command receipts before
 acknowledging, filters private player snapshots, and advances timers using alarms.
 The browser runs the engine only for explicitly local practice.
 
-Multiplayer requires a configured `CLUB_ACCESS_KEY` secret. Members enter this
-shared club access code once per browser; a signed HttpOnly cookie lasts 30 days.
-An independent browser-local player credential resumes a seat after refresh. This
-is prototype device identity, not individual account login: clearing browser data
-or switching devices does not recover the same player. Never share player tokens.
+Players select their name from a fixed roster and enter their own **4-digit PIN**.
+The server keeps a 30-day HttpOnly login session and a stable database player ID,
+so signing in on a different phone recovers the same seat. Players can change their
+PIN in the account menu; this signs out their other devices. No club access code,
+room-code entry, registration, or public game directory is needed.
+
+The owner manages the static roster directly in the existing SQLite database.
+See [player administration](docs/PLAYERS.md) for safe INSERT/reset instructions.
+No new database, login provider or shared access secret is required.
 
 Completed sessions remain stored when another session starts. Completed hands
-are archived separately from the live room's latest-100-hand view. The UI can
-reopen a completed session with its room code on the same player identity.
-Cross-session balance aggregation, partial external payments, account recovery,
-host handover and a history browser/export for the full archive remain backlog work.
+are archived separately from the live room's latest-100-hand view. Closed-session
+data remains stored under its internal session ID. Cross-session balance aggregation,
+partial external payments, host handover and a full history browser/export remain
+backlog work.
 Do not treat per-session payment toggles as the planned weekly ledger.
 
 The Cloudflare target is `dunzo-club-staging`:
@@ -37,16 +41,15 @@ Use Node >=22.13.0 on PATH and pnpm 11.25.0:
 
 ```sh
 pnpm install --frozen-lockfile
-cp .dev.vars.example .dev.vars
-# Edit .dev.vars with a long private local-only CLUB_ACCESS_KEY.
 pnpm dev:staging
 ```
 
-Open the printed local URL. Enter the local club access code and your name to
-create the sole table. Share its room code/invite with another browser profile or
-phone. That player enters the club access code and joins with their own stack.
-Both use the same app URL. Practice does not require an access code or server.
-Keep site data to retain a seat; use a different browser profile for a second player.
+Open the printed local URL. Provision your static players using
+[the database instructions](docs/PLAYERS.md), select your name and sign in.
+Any logged-in player can start the sole game when none is active. Every other
+logged-in player sees it immediately and can join with their own starting stack.
+There is no access code or game code to share. Practice runs locally without login.
+The automatic smoke runner provisions disposable local test accounts itself.
 
 No D1 migration is needed for this multiplayer implementation. The Durable Object
 SQLite migration is declared in `wrangler.staging.jsonc`. Local Wrangler manages
@@ -61,8 +64,8 @@ pnpm preview:staging
 ```
 
 Legacy `pnpm dev` / `pnpm build` framework entry points remain available and route
-poker traffic through the same coordinator; multiplayer still needs the local
-access secret. The original Site hosting identity is preserved in `.openai/hosting.json`.
+poker traffic through the same coordinator; login uses the same static player
+records. The original Site hosting identity remains in `.openai/hosting.json`.
 
 ## Checks
 
@@ -80,7 +83,7 @@ The smoke runner creates an isolated temporary local database, starts the built
 Worker, exercises HTTP/WebSocket multiplayer, restarts the server, checks an
 independent alarm and retained sessions, and cleans up. It does not use deployed
 storage. It needs a free loopback port 8787. To test another **disposable local**
-server, explicitly set `POKER_TEST_URL` and `POKER_TEST_ACCESS_KEY`, then run
+server, explicitly set `POKER_TEST_URL`, then run
 `pnpm test:api`. Both API test paths reject remote URLs. Never point tests at a
 live group. Physical 6–8-device/PWA/network-loss acceptance remains required.
 
@@ -95,7 +98,7 @@ live group. Physical 6–8-device/PWA/network-loss acceptance remains required.
 | `server/worker-router.ts` | Same-origin API/socket routing and readiness |
 | `server/club-table.ts` | Durable Object, serialization, access, private push, alarms |
 | `server/table-service.mjs` | Transactional state, idempotency, session/hand archive |
-| `server/access.mjs` | Signed club-access cookies |
+| `server/player-auth.mjs` | Fixed roster, hashed PINs and revocable player sessions |
 | `lib/poker.mjs` | Shared tested pure poker rules, secure shuffle and private views |
 | `docs/ISSUES.md`, `docs/BACKLOG.md` | Remaining work and acceptance criteria |
 

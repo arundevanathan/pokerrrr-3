@@ -67,7 +67,7 @@ export class TableService {
       }
       let room, previous;
       if (input.type === 'create') {
-        requireState(!(await tx.get('active')), 'A session is already active. Join it with the host’s code.');
+        requireState(!(await tx.get('active')), 'A game is already running. Join the current game.');
         let code;
         do { code = newCode(); } while (await tx.get(`room:${code}`));
         room = newRoom(code, token, input, now);
