@@ -13,8 +13,8 @@ export function localTarget(base) {
 export async function runApiSuite(base, restart) {
   localTarget(base);
   const [host,friend,observer]=testPlayers.map(p=>p.id),cookies=new Map();
-  const denied=await request(new URL('/api/poker',base));assert.equal(denied.status,401);
-  const cross=await request(new URL('/api/login',base),{method:'POST',headers:{Origin:'https://other.test','Content-Type':'application/json'},body:JSON.stringify({playerId:host,pin:'0123'})});assert.equal(cross.status,403);
+  const denied=await request(new URL('/api/poker',base));assert.equal(denied.status,401);await denied.arrayBuffer();
+  const cross=await request(new URL('/api/login',base),{method:'POST',headers:{Origin:'https://other.test','Content-Type':'application/json'},body:JSON.stringify({playerId:host,pin:'0123'})});assert.equal(cross.status,403);await cross.arrayBuffer();
   const roster=await (await request(new URL('/api/players',base))).json();assert.equal(roster.players.length,3);assert.ok(!JSON.stringify(roster).includes('pin_hash'));
   async function login(id,pin){
     const result=await request(new URL('/api/login',base),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({playerId:id,pin})});

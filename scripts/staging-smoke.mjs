@@ -31,7 +31,7 @@ async function start() {
   server.stdout.on('data',chunk=>logs+=chunk);server.stderr.on('data',chunk=>logs+=chunk);
   for(let i=0;i<90;i++){
     if(server.exitCode!==null) throw new Error(`Preview exited: ${logs}`);
-    try{if((await fetch(new URL('/api/health',base),{signal:AbortSignal.timeout(5000)})).ok)return}catch{}
+    try{const response=await fetch(new URL('/api/health',base),{signal:AbortSignal.timeout(5000)});await response.arrayBuffer();if(response.ok)return}catch{}
     await sleep(500);
   }
   throw new Error(`Preview did not become ready: ${logs}`);
@@ -39,7 +39,7 @@ async function start() {
 try {
   if(!external){
     await start();
-    await fetch(new URL('/api/players',base)); // Initialize the schema, then seed only offline disposable storage.
+    await (await fetch(new URL('/api/players',base))).arrayBuffer(); // Initialize the schema, then seed only offline disposable storage.
     await stop();
     console.log('Stopped schema preview; provisioning disposable players.');
     const files=readdirSync(directory,{recursive:true}).filter(path=>/v3\/do\/.*ClubTable\/[a-f0-9]{64}\.sqlite$/.test(path));
@@ -52,7 +52,7 @@ try {
   const health=await fetch(new URL('/api/health',base),{signal:AbortSignal.timeout(5000)}),data=await health.json();
   assert.equal(health.status,200);assert.equal(data.app,'Dunzo Club');assert.equal(data.environment,'staging');assert.equal(data.mode,'multiplayer');assert.equal(data.multiplayerReady,true);assert.match(data.version,/^[a-f0-9]{40}$/);
   const page=await fetch(base),html=await page.text();assert.equal(page.status,200);assert.match(html,/Dunzo Club/);assert.doesNotMatch(html,/Club access code|Room code/);
-  for(const asset of ['/manifest.webmanifest','/sw.js','/icon-192.png','/icon-512.png'])assert.equal((await fetch(new URL(asset,base))).status,200,asset);
+  for(const asset of ['/manifest.webmanifest','/sw.js','/icon-192.png','/icon-512.png']){const response=await fetch(new URL(asset,base));await response.arrayBuffer();assert.equal(response.status,200,asset)}
   await runApiSuite(base,external?undefined:async()=>{await stop();await start()});
   console.log('Built multiplayer Worker smoke passed; no remote resources used.');
 } catch(error) { console.error(logs.slice(-12000)); throw error; } finally {await stop();rmSync(directory,{recursive:true,force:true});}
