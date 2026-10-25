@@ -3,7 +3,7 @@ import WebSocket from 'ws';
 import { pathToFileURL } from 'node:url';
 import { commandEnvelope, PROTOCOL_VERSION } from '../lib/protocol/poker.mjs';
 import { testPlayers } from './player-fixtures.mjs';
-const request=(url,options={})=>fetch(url,{...options,signal:AbortSignal.timeout(10_000)});
+const request=(url,options={})=>fetch(url,{...options,headers:{...options.headers,Connection:'close'},signal:AbortSignal.timeout(10_000)});
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export function localTarget(base) {
   const url = new URL(base);
