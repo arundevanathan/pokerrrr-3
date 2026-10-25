@@ -1,4 +1,4 @@
-import { historyRange, aggregateGames, suggestedPayments, householdPair, historyPlayerKey, publicHistory } from '../lib/game-history.mjs';
+import { historyRange, canonicalHistory, aggregateGames, suggestedPayments, householdPair, historyPlayerKey, publicHistory } from '../lib/game-history.mjs';
 import { newRoom, command, view, tick } from '../lib/poker.mjs';
 import { parseCommand, playerToken, roomCode } from '../lib/protocol/poker.mjs';
 export class TableError extends Error {
@@ -105,7 +105,8 @@ export class TableService {
     from,
     to,
     cursor,
-    examples
+    examples,
+    roster = []
   } = {}) {
     let records = await this.completedGames({
       from,
@@ -122,7 +123,7 @@ export class TableService {
     const page = records.slice(0, 20),
       last = page.at(-1);
     return {
-      games: await publicHistory(page),
+      games: await publicHistory(examples ? page : canonicalHistory(page, roster)),
       nextCursor: records.length > 20 ? `${last.closedAt}:${last.code}` : null
     };
   }
@@ -138,7 +139,7 @@ export class TableService {
       to,
       examples
     }),
-      totals = aggregateGames(records);
+      totals = aggregateGames(examples ? records : canonicalHistory(records, roster));
     const payments = suggestedPayments(totals, householdPair(totals, roster));
     return {
       from,

@@ -249,3 +249,51 @@ test('share text includes date weekdays, totals before suggestions and simulated
   assert.ok(text.indexOf('Player Win / Loss') < text.indexOf('Suggested Payments'));
   assert.match(text, /Nothing is marked paid/);
 });
+
+test('confirmed legacy Arun/Dunzo and Ishita identities settle once under current accounts', async () => {
+  const roster = [{id: 'current-arun', name: 'Dunzo'}, {id: 'current-ishita', name: 'Ishita'}];
+  const records = [
+    {code: 'OLD', closedAt: now, players: [
+      {id: 'legacy-arun', name: 'Arun', buyins: 3000, cashout: 475},
+      {id: 'legacy-ishita', name: 'Ishita', buyins: 3000, cashout: 5525}
+    ]},
+    ...[100, 100, 75].map((loss, i) => ({code: `NEW-${i}`, closedAt: now + i + 1, players: [
+      {id: 'current-arun', name: 'Dunzo', buyins: 1000, cashout: 1000 - loss},
+      {id: 'current-ishita', name: 'Ishita', buyins: 1000, cashout: 1000 + loss}
+    ]}))
+  ];
+  const store = storage(records), before = JSON.stringify([...store.values]);
+  const service = new TableService(store);
+  const result = await service.settlement({from: '2026-10-25', to: '2026-10-25', roster});
+  assert.equal(result.gameCount, 4);
+  assert.deepEqual(result.totals.map(p => [p.name, p.net, p.games]), [['Ishita', 2800, 4], ['Dunzo', -2800, 4]]);
+  assert.deepEqual(result.payments.map(p => [p.fromName, p.toName, p.amount]), [['Dunzo', 'Ishita', 2800]]);
+  const history = await service.history({roster});
+  for (const game of history.games) {
+    assert.equal(game.players.find(p => p.name === 'Dunzo').key, await historyPlayerKey('current-arun'));
+    assert.equal(game.players.find(p => p.name === 'Ishita').key, await historyPlayerKey('current-ishita'));
+  }
+  assert.equal(JSON.stringify([...store.values]), before);
+  const simulated = await service.settlement({from: '2026-10-25', to: '2026-10-25', roster, examples: records});
+  assert.equal(simulated.totals.length, 4, 'examples keep their synthetic identities');
+});
+
+test('identity cleanup preserves distinct current accounts and unrelated same-name players', async () => {
+  const {canonicalHistory} = await import('../lib/game-history.mjs');
+  const roster = [{id: 'd', name: 'Dunzo'}, {id: 'i', name: 'Ishita'}, {id: 'v', name: 'Varun'}];
+  const record = {code: 'ALIASES', closedAt: now, players: [
+    {id: 'old-d', name: 'Arun', buyins: 100, cashout: 50},
+    {id: 'd', name: 'Dunzo', buyins: 100, cashout: 75},
+    {id: 'i', name: 'Ishita', buyins: 100, cashout: 125},
+    {id: 'v', name: 'Ishita', buyins: 100, cashout: 150},
+    {id: 'other-v', name: 'Varun', buyins: 100, cashout: 100}
+  ]};
+  const totals = aggregateGames(canonicalHistory([record], roster));
+  assert.equal(totals.find(p => p.id === 'd').net, -75);
+  assert.equal(totals.find(p => p.id === 'd').games, 1);
+  assert.equal(totals.find(p => p.id === 'v').name, 'Varun');
+  assert.ok(totals.some(p => p.id === 'other-v'));
+  assert.equal(totals.reduce((sum, p) => sum + p.net, 0), 0);
+  assert.throws(() => canonicalHistory([record], [...roster, {id: 'duplicate', name: 'Arun'}]), /Multiple current accounts/);
+  assert.throws(() => canonicalHistory([{...record, players: [...record.players, record.players[0]]}], roster), /Invalid player accounting/);
+});

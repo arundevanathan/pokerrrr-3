@@ -58,6 +58,17 @@ stacks/balances to merge identities. If legacy identities cannot be verified, en
 and reconcile the legacy game before release. Local implementation does not import,
 reset or reassign live player balances automatically.
 
+## Confirmed historical aliases
+
+The owner confirmed that historical **Arun** and **Dunzo** are one person and that
+there is only one **Ishita**. History and settlement resolve those historical names
+to the respective current roster ID, displaying Dunzo and Ishita once. Current
+roster IDs take precedence over archived names. Other names are never merged.
+Multiple current accounts matching one confirmed identity block the calculation
+until the roster is verified. Simulated examples remain isolated and keep their
+synthetic IDs. This read-only projection changes no stored game records, chip
+amounts, active seats or login credentials.
+
 ## Sessions, PIN changes and owner resets
 
 PINs are four digits, salted and hashed with PBKDF2-SHA256 (100,000 iterations).
