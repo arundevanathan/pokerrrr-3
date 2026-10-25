@@ -8,9 +8,8 @@ export function PlayerLobby({player,players,activeGame,loading,busy,error,onLogi
  const [selected,setSelected]=useState(''),[pin,setPin]=useState(''),[buyin,setBuyin]=useState(2500),[sb,setSb]=useState(25),[bb,setBb]=useState(50),[rotation,setRotation]=useState(3);
  async function login(event:FormEvent){event.preventDefault();const entered=pin;setPin('');await onLogin(selected,entered)}
  return <section className="setup">
-  <div className="eyebrow">YOUR PRIVATE TABLE</div>
   {loading?<p role="status">Loading your table…</p>:!player?<>
-   <h2>Welcome back.</h2><p>Choose your name and enter your PIN.</p>
+   <h2>Sign in</h2>
    <form onSubmit={login}>
     <label>Your name<select required value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Select your name</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
     <label>4-digit PIN<input type="password" inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4} autoComplete="current-password" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,''))} required/></label>
@@ -27,7 +26,7 @@ export function PlayerLobby({player,players,activeGame,loading,busy,error,onLogi
    </form>
   </>}
   {error&&<div className="error" role="alert">{error}{hasPending&&<button type="button" onClick={onRetry}>Retry last action</button>}</div>}
-  <div className="practice-row"><span>Want a practice hand?</span><button onClick={onPractice}>Practice locally</button></div>
+  <div className="practice-row"><button onClick={onPractice}>Practice locally</button></div>
  </section>;
 }
 export function PinSettings({onChange,busy,error}:{onChange:(oldPin:string,newPin:string)=>Promise<void>;busy:boolean;error:string}) {
