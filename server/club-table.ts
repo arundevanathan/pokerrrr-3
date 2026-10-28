@@ -2,7 +2,9 @@ import { resetStagingHistory } from '../lib/staging-history.mjs';
 import { historyViewerKey } from '../lib/game-history.mjs';
 import { DurableObject } from 'cloudflare:workers';
 import { TableService, TableError, nextDeadline } from './table-service.mjs';
-import { PlayerAuth, sessionCookie } from './player-auth.mjs';
+import {command as engineCommand} from '../lib/poker.mjs';
+import {buildScenario, stepSimulation} from '../lib/test-lab/scenarios.mjs';
+import {hashPin, PlayerAuth, sessionCookie } from './player-auth.mjs';
 import { PROTOCOL_VERSION } from '../lib/protocol/poker.mjs';
 import { SocialService } from './social-service.mjs';
 import { presenceView } from '../lib/presence.mjs';
@@ -91,6 +93,48 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
     return this.serial(async () => {
       try {
         const url = new URL(request.url);
+        if(url.pathname.startsWith('/__test-lab/')) {
+          const session=request.headers.get('X-Test-Lab-Route');
+          if(this.env.APP_ENV!=='staging'||!session) return json({error:'Not found'},404);
+          if(url.pathname==='/__test-lab/setup'&&request.method==='POST') {
+            if(await this.ctx.storage.get('test-lab'))return json({error:'Session already exists'},409);
+            const built=buildScenario(await this.body(request));
+            const roster=built.room.players.map((p:any)=>({seat:p.seat,name:p.name,id:session.slice(0,24)+String(p.seat+1).padStart(12,'0')}));
+            let encoded=JSON.stringify(built.room);
+            built.room.players.forEach((p:any,i:number)=>{encoded=encoded.replaceAll(p.id,roster[i].id);});
+            const room=JSON.parse(encoded);
+            const shift=Date.now()-built.now;
+            const dates=new Set(['createdAt','handStartedAt','deadline','opensAt','resolvedAt','showdownAt','payoutFinishedAt','nextDealAt','startedAt','completedAt','updatedAt','at','closedAt','lastActionAt']);
+            const rebase=(value:any):any=>Array.isArray(value)?value.map(rebase):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,dates.has(k)&&typeof v==='number'?v+shift:rebase(v)])):value;
+            const rebased=rebase(room);Object.assign(room,rebased);delete room.labNow;
+            const {salt,hash}=await hashPin('1111');
+            this.ctx.storage.transactionSync(()=>{for(const p of roster)this.ctx.storage.sql.exec('INSERT INTO players(id,name,pin_salt,pin_hash) VALUES(?,?,?,?)',p.id,p.name,salt,hash);});
+            await this.ctx.storage.transaction(async tx=>{await this.service.save(tx,null,room);await tx.put('test-lab',{config:built.config,roster,createdAt:Date.now()});});
+            return json({config:built.config,players:roster.map(({id,...p}:any)=>p)});
+          }
+          const lab:any=await this.ctx.storage.get('test-lab');if(!lab)return json({error:'Test session not found'},404);
+          const viewer=Number(request.headers.get('X-Test-Lab-Viewer')), person=lab.roster.find((p:any)=>p.seat===viewer);
+          if(!person)return json({error:'Choose an occupied test seat'},400);
+          if(url.pathname==='/__test-lab/bootstrap'&&request.method==='POST') {
+            const login=await this.auth.login(person.id,'1111');return json({player:login.player},200,{'Set-Cookie':sessionCookie(login.token,url.protocol==='https:')});
+          }
+          if(url.pathname==='/__test-lab/control'&&request.method==='POST') {
+            if(!(await this.auth.session(request)))return json({error:'Open this test viewpoint first'},401);
+            const input=await this.body(request);
+            if(input.type==='step') {
+              const previous:any=await this.ctx.storage.get('room:LAB222'), room=structuredClone(previous);
+              if(input.auto&&(Date.now()<room.handStartedAt+(room.dealDuration||0)||room.turn===person.id||room.phase==='closed'||room.phase==='showdown'&&Date.now()<room.payoutFinishedAt))return json({skipped:true});
+              if(input.auto&&room.phase==='runout_vote') {
+                if(Date.now()<room.runVote.opensAt||Date.now()>=room.runVote.deadline)return json({skipped:true});
+                for(const voter of room.runVote.voters)if(voter.id!==person.id&&voter.choice===null)engineCommand(room,voter.id,{type:'runout_vote',choice:room.runVote.canTwice?2:1},Date.now());
+              } else stepSimulation(room,Date.now(),lab.config.seed,['precall-raise','short-call'].includes(lab.config.scenario));delete room.labNow;
+              await this.ctx.storage.transaction(async tx=>{await this.service.save(tx,previous,room);});await this.broadcast();
+              return json({ok:true});
+            }
+            return json({error:'Unknown test control'},400);
+          }
+          return json({error:'Unknown test endpoint'},404);
+        }
         if (url.pathname === '/api/players' && request.method === 'GET') return json({
           players: this.auth.players()
         });

@@ -1,0 +1,79 @@
+const {chromium}=require(process.env.POKER_PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict'),cp=require('node:child_process');
+(async()=>{
+  const server=cp.spawn(process.execPath,['scripts/staging.mjs','preview'],{detached:true,stdio:['ignore','pipe','pipe'],env:{...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',WRANGLER_SEND_METRICS:'false'}});
+  let logs='';server.stdout.on('data',d=>logs+=d);server.stderr.on('data',d=>logs+=d);
+  let browser;
+  try{
+    for(let i=0;i<90;i++){try{if((await fetch('http://127.0.0.1:8787/api/health')).ok)break;}catch{}await new Promise(r=>setTimeout(r,500));}
+    browser=await chromium.launch({headless:true,executablePath:process.env.POKER_BROWSER_EXECUTABLE,args:['--no-sandbox']});
+    const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await page.goto('http://127.0.0.1:8787/test-lab');
+    await page.getByLabel('Mode',{exact:true}).selectOption('choose');
+    await page.getByLabel('Scenario',{exact:true}).selectOption('run-twice');
+    await page.getByLabel('Game',{exact:true}).selectOption('PLO5');
+    await page.getByRole('button',{name:'Apply / reset selected scenario',exact:true}).click();
+    let table=page.frameLocator('iframe');
+    await table.locator('.seat.occupied').first().waitFor();
+    await table.locator('.board-cards').nth(1).waitFor();
+    assert.equal(await table.locator('.seat.occupied').count(),6);
+    assert.equal(await table.locator('.board-cards .card').count(),10);
+    assert(await table.locator('.board-card-wrap').evaluateAll(es=>es.every(e=>Number(getComputedStyle(e).opacity)>.99)),'Settled cards are painted, not just present in the DOM');
+    await page.getByRole('button',{name:'Looks good',exact:true}).waitFor({state:'visible'});
+    await page.waitForFunction(()=>!document.querySelector('button.lab-primary[disabled]'));
+    const checkpoint=page.getByRole('slider',{name:'Checkpoint'}),end=Number(await checkpoint.getAttribute('max'));
+    assert(end>3);assert.equal(await checkpoint.inputValue(),String(end));
+    await page.waitForTimeout(1200);assert.equal(await checkpoint.inputValue(),String(end),'Frozen scenario does not advance');
+    await page.getByRole('button',{name:'Replay transition',exact:true}).click();await page.waitForTimeout(500);
+    await page.getByRole('button',{name:'Pause',exact:true}).click();
+    assert(Number(await checkpoint.inputValue())<end,'Replay restarts the scripted hand');
+    await checkpoint.fill(String(end));
+    await page.locator('textarea').fill('Test annotation: verify second board spacing.');
+    await page.getByRole('button',{name:'Flag issue',exact:true}).click();
+    await page.locator('.lab-status.flagged').waitFor();
+    const report=await page.evaluate(()=>JSON.parse(localStorage.getItem('dunzo-test-lab-reviews')));
+    assert.equal(Object.values(report)[0].report.configuration.seed,'42');
+    assert.equal(Object.values(report)[0].status,'flagged');
+    await page.getByRole('button',{name:'Looks good',exact:true}).click();await page.locator('.lab-status.passed').waitFor();
+    await page.screenshot({path:'/tmp/test-lab-desktop.png',fullPage:true});
+    console.log('PASS guided lab: real table, two runs, frozen clock, replay/pause, explicit review marks and reproducible report.');
+    for(const [players,game,scenario] of [[8,'PLO5','showdown'],[6,'PLO5','run-twice'],[4,'NLH','rabbit'],[2,'PLO4','split']]){
+      await page.getByLabel('Scenario',{exact:true}).selectOption(scenario);await page.getByLabel('Total players',{exact:true}).selectOption(String(players));await page.getByLabel('Game',{exact:true}).selectOption(game);
+      await page.getByLabel('Viewport',{exact:true}).selectOption('small');
+      await page.getByRole('button',{name:'Apply / reset selected scenario',exact:true}).click();
+      await table.locator('.seat.occupied').first().waitFor();assert.equal(await table.locator('.seat.occupied').count(),players);
+      const bounds=await table.locator('.table-stage').boundingBox();assert(bounds.width<=320,'Preview table fits small viewport');
+      const fit=await table.locator('body').evaluate(e=>e.scrollWidth<=innerWidth);assert(fit,'No horizontal table overflow');
+      await table.locator('.app').screenshot({path:`/tmp/test-lab-${players}-${game}-${scenario}.png`});
+      console.log(`PASS lab viewport: ${players} ${game} ${scenario}`);
+    }
+    // Real-client network failure injection against a fresh isolated DO.
+    await page.getByLabel('Environment',{exact:true}).selectOption('server');
+    await page.getByLabel('Scenario',{exact:true}).selectOption('betting');await page.getByLabel('Game',{exact:true}).selectOption('NLH');
+    await page.getByLabel('Total players',{exact:true}).selectOption('3');await page.getByLabel('Viewport',{exact:true}).selectOption('portrait');
+    await page.getByRole('button',{name:'Apply / reset selected scenario',exact:true}).click();
+    await table.locator('.action-buttons').waitFor();
+    await table.locator('.app').screenshot({path:'/tmp/test-lab-server-before.png'});
+    await page.getByLabel('Fail this player’s connection').selectOption('lost-reply');
+    const call=table.locator('.action-buttons button').nth(1);await call.click();
+    await page.getByRole('status').filter({hasText:'Accepted HTTP reply dropped'}).waitFor();
+    await page.waitForTimeout(2500);
+    assert.equal(await table.getByText('Retry last action',{exact:true}).count(),0,'Accepted reply recovers without manual retry');
+    const url=new URL(await page.locator('iframe').getAttribute('src'),'http://127.0.0.1:8787');
+    const peer=await browser.newPage({viewport:{width:390,height:844}});
+    await peer.goto('http://127.0.0.1:8787/test-lab/table?session='+url.searchParams.get('session')+'&viewer=1');
+    await peer.locator('.seat.occupied').first().waitFor();
+    await page.getByRole('button',{name:'Play / bots',exact:true}).click();
+    await page.getByLabel('Fail this player’s connection').selectOption('both');await page.waitForTimeout(18000);
+    await peer.locator('.seat.occupied').filter({hasText:'You · Test player'}).locator('.disconnected').waitFor({timeout:12000});
+    console.log('PASS server lab: peer sees Disconnected while real server timers and opponents continue.');
+    await page.getByRole('button',{name:'Reload player with current fault'}).click();
+    await table.getByText('Loading your table…',{exact:true}).waitFor();
+    await page.getByLabel('Fail this player’s connection').selectOption('none');
+    await table.locator('.seat.occupied').first().waitFor({timeout:20000});
+    assert.equal(await table.getByRole('heading',{name:'Sign in',exact:true}).count(),0);
+    await peer.close();
+    console.log('PASS server lab: lost HTTP reply fallback and offline reload restore the synthetic player automatically.');
+    assert.deepEqual(errors,[]);
+  }catch(e){console.error(logs.slice(-2000));throw e;}finally{await browser?.close();try{process.kill(-server.pid,'SIGTERM');}catch{}server.stdout.destroy();server.stderr.destroy();server.unref();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

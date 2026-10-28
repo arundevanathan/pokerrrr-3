@@ -14,7 +14,7 @@
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test": "node --test tests/poker.test.mjs tests/presentation.test.mjs tests/server.test.mjs tests/player-auth.test.mjs tests/history.test.mjs tests/reactions.test.mjs tests/social.test.mjs tests/table-management.test.mjs tests/reaction-audio.test.mjs tests/recovery.test.mjs tests/preactions.test.mjs",
+    "test": "node --test tests/poker.test.mjs tests/presentation.test.mjs tests/server.test.mjs tests/player-auth.test.mjs tests/history.test.mjs tests/reactions.test.mjs tests/social.test.mjs tests/table-management.test.mjs tests/reaction-audio.test.mjs tests/recovery.test.mjs tests/preactions.test.mjs tests/test-lab.test.mjs",
     "test:api": "node tests/api.test.mjs",
     "typecheck": "tsc --noEmit",
     "build:staging": "node scripts/staging.mjs build",
@@ -29,7 +29,8 @@
     "deploy:production": "node scripts/production.mjs deploy",
     "upload:production": "node scripts/production.mjs upload",
     "test:production": "node --test tests/production.test.mjs",
-    "test:production:smoke": "POKER_SMOKE_ENV=production node scripts/staging-smoke.mjs"
+    "test:production:smoke": "POKER_SMOKE_ENV=production node scripts/staging-smoke.mjs",
+    "test:lab": "node --test tests/test-lab.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -30,7 +30,9 @@ export function PlayerLobby({
   onRetry: () => void;
   hasPending: boolean;
 }) {
-  const [selected, setSelected] = useState(''),
+  const [simulate, setSimulate] = useState(false),
+    [opponents, setOpponents] = useState(5),
+    [selected, setSelected] = useState(''),
     [pin, setPin] = useState(''),
     [bb, setBb] = useState(50),
     [rotation, setRotation] = useState(3),
@@ -67,7 +69,7 @@ export function PlayerLobby({
     </> : <>
 
       <h2>
-        {activeGame ? 'A game is running right now' : 'Start Game'}
+        {activeGame ? 'A game is running right now' : simulate && onPractice ? 'Start Simulation' : 'Start Game'}
       </h2>
 
       {activeGame ? <p>{activeGame.players.map((p: any) => p.name).join(' · ') || 'Waiting for players'}<br />{activeGame.settings.sb} / {activeGame.settings.bb} blinds</p> : null}
@@ -78,7 +80,8 @@ export function PlayerLobby({
           bb,
           rotation,
           timer,
-          games
+          games,
+          ...(onPractice && simulate ? {simulate:true, opponents} : {})
         });
       }}>
 
@@ -91,6 +94,7 @@ export function PlayerLobby({
             </label>)}
           </fieldset>
 
+          {onPractice && <><label className="simulation-choice"><input type="checkbox" checked={simulate} onChange={e=>setSimulate(e.target.checked)} /> Simulate players</label>{simulate && <label>Simulated opponents<select value={opponents} onChange={e=>setOpponents(Number(e.target.value))}>{[1,2,3,4,5,6,7].map(n=><option key={n} value={n}>{n} opponents · {n+1} total players</option>)}</select></label>}</>}
           <label>Big Blind<input type="number" min={2} max={100000} step={2} value={bb} onChange={e => setBb(Number(e.target.value))} required /><small>Small Blind: {bb > 0 ? bb / 2 : 0}</small></label>
 
           <label>Time to act<select value={timer} onChange={e => setTimer(Number(e.target.value))}>
@@ -103,7 +107,7 @@ export function PlayerLobby({
         </>}
 
         <button className="primary full" disabled={busy || !activeGame && games.length === 0}>
-          {busy ? 'Opening…' : activeGame ? 'Join Now' : 'Start Game'}
+          {busy ? 'Opening…' : activeGame ? 'Join Now' : simulate && onPractice ? 'Start Simulation' : 'Start Game'}
         </button>
 
       </form>
@@ -116,7 +120,7 @@ export function PlayerLobby({
     </div>}
 
     {onPractice && <div className="practice-row">
-      <button onClick={onPractice}>Practice locally</button>
+      <button onClick={onPractice}>Test UI</button>
     </div>}
 
   </section>;

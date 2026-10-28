@@ -187,3 +187,10 @@ directly without dismissing the composer. The viewport follows native keyboard
 resize and panning offsets. The action-button group has no turn/selection glow;
 seat highlights, the moving beam and deliberately queued individual pre-actions
 remain the turn/selection indicators.
+
+## Staging Test UI
+
+The staging home screen exposes one Test UI lab with guided visual reviews,
+selectable seeded scenarios, configurable simulation and isolated real-server
+connection testing. See [the test-lab guide](docs/TEST_LAB.md). Production excludes
+these routes and controls.

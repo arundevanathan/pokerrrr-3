@@ -118,8 +118,8 @@ try {
   assert.equal(page.status, 200);
   assert.match(html, /Dunzo Club/);
   assert.doesNotMatch(html, /Club access code|Room code/);
-  if (environment === 'production') assert.doesNotMatch(html, /Practice locally|staging-badge/);
-  else assert.match(html, /Practice locally/);
+  if (environment === 'production') assert.doesNotMatch(html, /Test UI|staging-badge/);
+  else assert.match(html, /Test UI/);
   for (const asset of ['/manifest.webmanifest', '/sw.js', '/icon-192.png', '/icon-512.png']) {
     const response = await request(new URL(asset, base));
     await response.arrayBuffer();
