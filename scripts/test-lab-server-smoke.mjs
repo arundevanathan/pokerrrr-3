@@ -38,6 +38,9 @@ try{
     const beforeRestart=await get();await stop();start();await ready();const restored=await get();assert.equal(restored.version,beforeRestart.version);assert.deepEqual(restored.players.map(p=>p.stack),beforeRestart.players.map(p=>p.stack));
     const bootB=await request(prefixB+'/bootstrap',{method:'POST'}),cookieB=bootB.headers.get('set-cookie').split(';')[0];
     const history=await request(prefixB+'/api/hand-history?code=LAB222&format=json',{headers:{Cookie:cookieB}});assert.equal(history.status,200);assert.equal((await history.json()).hands[0].rabbitHunt.board.length,5);
+    const completed=await create({scenario:'closed',players:3}),endPrefix=`/api/test-lab/session/${completed.session}/0`;
+    const endBoot=await request(endPrefix+'/bootstrap',{method:'POST'}),endCookie=endBoot.headers.get('set-cookie').split(';')[0];
+    const endedLobby=await (await request(endPrefix+'/api/lobby',{headers:{Cookie:endCookie}})).json();assert.equal(endedLobby.activeGame.code,'LAB222');assert.equal(endedLobby.activeGame.phase,'closed');
     const hostile=await request('/api/test-lab/create',{...body({}),headers:{'Content-Type':'application/json',Origin:'https://other.test'}});assert.equal(hostile.status,403);
     assert.equal((await request('/__test-lab/setup',body({}))).status,404);
     console.log('PASS isolated real-Worker lab: scoped identities/cookies, independent sessions, chip actions, durable duplicate receipt, scenario history, origin and internal-route guards.');

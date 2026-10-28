@@ -467,7 +467,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     }
   }
   async function exit() {
-    if (lab) {labRuntime.current?.exit();return;}
+    if (showTestTools && location.pathname.startsWith('/test-lab/table')) {if(lab)labRuntime.current?.exit();else window.parent.postMessage({type:'lab-exit'},location.origin);return;}
     const r = current.current;
     const leaving = r?.players.find((p: any) => p.id === r.me && !p.left);
     if (enableReactions && leaving && !leaving.away && !leaving.pendingSeatAction && r.phase !== 'closed') {

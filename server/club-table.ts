@@ -386,7 +386,9 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
     return this.withPresence(await this.service.snapshot(playerId, code));
   }
   private async lobby(playerId: string) {
-    const code = await this.ctx.storage.get<string>('active');
+    let code = await this.ctx.storage.get<string>('active');
+    // A lab can open a completed-game fixture without making it a live game.
+    if (!code && this.env.APP_ENV==='staging' && await this.ctx.storage.get('test-lab')) code='LAB222';
     if (!code) return {
       activeGame: null
     };
@@ -458,7 +460,9 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
   }
   private async maintainSocial() {
     if (!reactionsEnabled(this.env.APP_ENV)) return;
-    const code = await this.ctx.storage.get<string>('active');
+    let code = await this.ctx.storage.get<string>('active');
+    // A lab can open a completed-game fixture without making it a live game.
+    if (!code && this.env.APP_ENV==='staging' && await this.ctx.storage.get('test-lab')) code='LAB222';
     if (!code) return;
     for (const event of await this.social.drain(code)) await this.broadcastReaction(event);
     const room = await this.ctx.storage.get<any>(`room:${code}`);

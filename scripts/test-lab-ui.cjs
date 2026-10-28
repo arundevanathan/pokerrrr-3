@@ -86,6 +86,9 @@ const assert=require('node:assert/strict'),cp=require('node:child_process');
     await table.locator('.seat.occupied').first().waitFor({timeout:20000});
     assert.equal(await table.getByRole('heading',{name:'Sign in',exact:true}).count(),0);
     await peer.close();
+    await page.getByLabel('Scenario',{exact:true}).selectOption('closed');await page.getByRole('button',{name:'Apply / reset selected scenario',exact:true}).click();
+    await table.locator('.game-ended-actions').waitFor();assert.equal(await table.getByRole('button',{name:'Return to Lobby',exact:true}).count(),1);
+    console.log('PASS server lab: completed-game fixtures open directly with accessible navigation.');
     console.log('PASS server lab: lost HTTP reply fallback and offline reload restore the synthetic player automatically.');
     assert.deepEqual(errors,[]);
   }catch(e){console.error(logs.slice(-2000));throw e;}finally{await browser?.close();try{process.kill(-server.pid,'SIGTERM');}catch{}server.stdout.destroy();server.stderr.destroy();server.unref();}
