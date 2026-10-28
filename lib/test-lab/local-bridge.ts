@@ -34,7 +34,7 @@ export function installLocalLab(options: any) {
   };
   window.addEventListener('message',message);
   const query=new URLSearchParams(location.search);
-  try{load(JSON.parse(query.get('config')||'{}'));}catch(error:any){post({error:error.message});}
+  try{load(JSON.parse(query.get('config')||'{}'));if(query.has('checkpoint'))point(Number(query.get('checkpoint')));}catch(error:any){post({error:error.message});}
   const timer=setInterval(()=>{
     if(!running||!bundle)return;
     try{

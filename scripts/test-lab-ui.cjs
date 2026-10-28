@@ -37,6 +37,19 @@ const assert=require('node:assert/strict'),cp=require('node:child_process');
     await page.getByRole('button',{name:'Looks good',exact:true}).click();await page.locator('.lab-status.passed').waitFor();
     await page.screenshot({path:'/tmp/test-lab-desktop.png',fullPage:true});
     console.log('PASS guided lab: real table, two runs, frozen clock, replay/pause, explicit review marks and reproducible report.');
+    await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+    await page.getByRole('button',{name:'Copy scenario link',exact:true}).click();
+    const reproduction=await page.evaluate(()=>navigator.clipboard.readText()),link=new URL(reproduction);
+    assert.equal(link.searchParams.get('backend'),'local');assert.equal(link.searchParams.get('checkpoint'),String(end));
+    const reproduced=await browser.newPage();await reproduced.goto(reproduction);
+    await reproduced.waitForFunction(()=>document.querySelector('select[aria-label=Mode]')?.value==='choose');
+    assert.equal(await reproduced.getByLabel('Mode',{exact:true}).inputValue(),'choose');
+    assert.equal(await reproduced.getByLabel('Scenario',{exact:true}).inputValue(),'run-twice');
+    await reproduced.getByRole('button',{name:'Load Scenario',exact:true}).click();
+    await reproduced.frameLocator('iframe').locator('.board-cards').nth(1).waitFor();
+    assert.equal(await reproduced.getByRole('slider',{name:'Checkpoint'}).inputValue(),String(end));await reproduced.close();
+    console.log('PASS reproduction link restores scenario, review mode, environment, viewport and checkpoint.');
+
     for(const [players,game,scenario] of [[8,'PLO5','showdown'],[6,'PLO5','run-twice'],[4,'NLH','rabbit'],[2,'PLO4','split']]){
       await page.getByLabel('Scenario',{exact:true}).selectOption(scenario);await page.getByLabel('Total players',{exact:true}).selectOption(String(players));await page.getByLabel('Game',{exact:true}).selectOption(game);
       await page.getByLabel('Viewport',{exact:true}).selectOption('small');

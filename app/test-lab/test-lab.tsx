@@ -7,7 +7,7 @@ export function TestLab(){
     [backend,setBackend]=useState('local'),[device,setDevice]=useState('portrait'),[src,setSrc]=useState(''),[state,setState]=useState<any>(null),[session,setSession]=useState(''),
     [busy,setBusy]=useState(false),[error,setError]=useState(''),[fault,setFault]=useState('none'),[note,setNote]=useState(''),[reviews,setReviews]=useState<Record<string,Review>>({}),
     [build,setBuild]=useState<any>(null),[running,setRunning]=useState(false),[full,setFull]=useState(false),[copied,setCopied]=useState('');
-  const frame=useRef<HTMLIFrameElement>(null), activeRef=useRef<any>(null), runRef=useRef(0);
+  const frame=useRef<HTMLIFrameElement>(null), activeRef=useRef<any>(null), runRef=useRef(0), requestedPoint=useRef<number|null>(null);
   const pack=mode==='quick'?QUICK:mode==='full'?SCENARIOS.filter(s=>s.id!=='simulation').map(s=>s.id):mode==='custom'?custom:SCENARIOS.map(s=>s.id);
   const scenario:any=SCENARIOS.find(s=>s.id===config.scenario)!;
   const key=(cfg:any)=>`${build?.revision||'unversioned'}:${LAB_VERSION}:${JSON.stringify(cfg)}:${backend}:${device}`;
@@ -16,7 +16,10 @@ export function TestLab(){
   useEffect(()=>{
     const q=new URLSearchParams(location.search);
     if(window.innerWidth<=800)setDevice('actual');
-    try {if(q.get('config')){const cfg=normalizeConfig(JSON.parse(q.get('config')!));setConfig(cfg);if(cfg.scenario==='simulation')setMode('simulate');}
+    if(q.get('backend')==='server')setBackend('server');
+    if(presets.some(d=>d.id===q.get('device')))setDevice(q.get('device')!);
+    if(q.has('checkpoint')&&Number.isInteger(Number(q.get('checkpoint'))))requestedPoint.current=Number(q.get('checkpoint'));
+    try {if(q.get('config')){const cfg=normalizeConfig(JSON.parse(q.get('config')!));setConfig(cfg);setMode(cfg.scenario==='simulation'?'simulate':'choose');}
       const saved=JSON.parse(localStorage.getItem('dunzo-test-lab-reviews')||'{}');setReviews(saved);
     }catch{}
     fetch('/build-info.json',{cache:'no-store'}).then(r=>r.json()).then(setBuild).catch(()=>{});
@@ -44,6 +47,7 @@ export function TestLab(){
       setSession(sessionId);setConfig(cfg);setActive(cfg);activeRef.current=cfg;setBackend(kind);
       const q=new URLSearchParams({config:JSON.stringify(cfg)});
       if(sessionId){q.set('session',sessionId);q.set('viewer',String(cfg.viewer));}
+      if(kind==='local'&&requestedPoint.current!==null){q.set('checkpoint',String(requestedPoint.current));requestedPoint.current=null;}
       q.set('reload',String(Date.now()));setSrc('/test-lab/table?'+q);
     }catch(e:any){if(request===runRef.current)setError(e.message);}finally{if(request===runRef.current)setBusy(false);}
   }
@@ -62,7 +66,7 @@ export function TestLab(){
   }
   function download(){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify({current:active?report():null,reviews},null,2)],{type:'application/json'}));a.href=url;a.download='dunzo-test-lab-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   async function copy(){try{await navigator.clipboard.writeText(JSON.stringify(report(),null,2));setCopied('Report copied. Attach a phone screenshot if needed.');}catch{download();setCopied('Clipboard unavailable; report downloaded.');}}
-  function permalink(){const q=new URLSearchParams({config:JSON.stringify(active||config)});return location.origin+'/test-lab?'+q;}
+  function permalink(){const q=new URLSearchParams({config:JSON.stringify(active||config),backend,device});if(backend==='local'&&state)q.set('checkpoint',String(state.index||0));return location.origin+'/test-lab?'+q;}
   const preset=presets.find(d=>d.id===device)!, currentReview=active?reviews[key(active)]:null;
   const statuses=pack.map(id=>reviews[key(normalizeConfig({...config,scenario:id}))]?.status),passed=statuses.filter(s=>s==='passed').length,flagged=statuses.filter(s=>s==='flagged').length;
   return <main className={`test-lab ${full?'lab-fullscreen':''}`}>
