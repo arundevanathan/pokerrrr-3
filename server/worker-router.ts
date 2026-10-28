@@ -33,7 +33,7 @@ export async function routeClubRequest(request: Request, env: Cloudflare.Env, co
   const url = new URL(request.url);
   const health = stagingResponse(request, env.APP_ENV || 'local', commit, Boolean(env.CLUB_TABLE));
   if (health) return health;
-  if (!['/api/poker', '/api/poker/socket', '/api/players', '/api/session', '/api/login', '/api/logout', '/api/pin', '/api/lobby', '/api/history', '/api/settlement', '/api/reactions', '/api/chat'].includes(url.pathname)) {
+  if (!['/api/poker', '/api/poker/socket', '/api/players', '/api/session', '/api/login', '/api/logout', '/api/pin', '/api/lobby', '/api/history', '/api/settlement', '/api/hand-history', '/api/reactions', '/api/chat'].includes(url.pathname)) {
     if (url.pathname.startsWith('/api/poker/')) return json({
       error: 'Unknown endpoint'
     }, 404);

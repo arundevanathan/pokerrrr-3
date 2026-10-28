@@ -118,6 +118,32 @@ test('wire protocol rejects unknown actions, extra fields and missing concurrenc
     amount: 20
   })));
 });
+test('four-player hand exports are viewer-scoped and persist reveals and Rabbit Hunt', async () => {
+  const f = await fixture(4);
+  await f.send(f.players[0], 'deal');
+  for (let i = 0; i < 4; i++) {
+    const running = await f.storage.get(`room:${f.code}`);
+    if (running.phase === 'showdown') break;
+    await f.service.advance(running.deadline + 1);
+  }
+  await f.send(f.players[1], 'voluntary_reveal');
+  await f.send(f.players[3], 'rabbit_hunt');
+  const hand = await f.storage.get(`hand:${f.code}:0000000001`);
+  assert.equal(hand.reveals.length, 1);
+  assert.equal(hand.rabbitHunt.board.length, 5);
+  const exported = await f.service.handHistory(f.players[0], f.code);
+  assert.equal(exported.length, 1);
+  assert.ok(exported[0].visibleHoleCards.some(player => player.seat === hand.privateCards.find(player => player.id === f.players[0]).seat));
+  assert.ok(exported[0].visibleHoleCards.some(player => player.seat === hand.reveals[0].seat));
+  assert.ok(!JSON.stringify(exported).includes(f.players[2]));
+  const restarted = new TableService(f.storage);
+  assert.deepEqual(await restarted.handHistory(f.players[0], f.code), exported);
+  const shown = await restarted.snapshot(f.players[0], f.code);
+  assert.deepEqual(shown.players.find(p => p.seat === hand.reveals[0].seat).cards, hand.reveals[0].cards);
+  assert.equal(shown.players.find(p => p.seat === hand.privateCards.find(p => p.id === f.players[2]).seat).cards, undefined);
+  const notAPlayer = await f.service.handHistory(crypto.randomUUID(), f.code);
+  assert.deepEqual(notAPlayer, []);
+});
 test('one active table is enforced under simultaneous creates, retry returns original acknowledgement', async () => {
   const service = new TableService(new MemoryStorage());
   const attempts = ['Host', 'Other'].map(name => ({token: crypto.randomUUID(), input: commandEnvelope({type: 'create', name})}));

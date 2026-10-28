@@ -4491,6 +4491,8 @@ html:has(.app.in-game),body:has(.app.in-game) {
   font-size: 26px;
   margin: 0;
 }
+.history-toolbar > span,.post-hand-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.build-disclosure { color: var(--muted); font-size: 10px; margin-left: auto; white-space: nowrap; }
 
 .history-table-scroll {
   overflow-x: auto;
@@ -4859,6 +4861,12 @@ html:has(.app.in-game),body:has(.app.in-game) {
 .table-winner-name b {color: #b7edb9;}
 .table-winner-name:disabled {opacity: 1; cursor: default;}
 .table-winning-hand {display: block; font-size: 12px; line-height: 1.35; color: #d1dec5; overflow-wrap: anywhere;}
+.table-awards .best-five { justify-content: center; gap: 8px; margin: 6px 0 2px; }
+.table-awards .best-five > span { color: #ffe1a0; font-size: 8px; }
+.table-awards .best-five > div { gap: 3px; }
+.table-awards .best-five .card.small { width: 22px; height: 31px; min-width: 22px; padding: 2px; }
+.table-awards .best-five .card.small b { font-size: 10px; }
+.table-awards .best-five .card.small > span { font-size: 12px; }
 .table-award-winners small {display: block; font-size: 11px; color: var(--muted);}
 .in-game .action-zone:has(.showdown-summary) .between-hands {min-height: 24px; margin-top: auto; flex-shrink: 0;}
 @media(max-width:360px) {
@@ -4951,7 +4959,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
 }
 .in-game .table-stage.two-runouts .runout-boards { gap: 8px; }
 .in-game .table-stage.two-runouts .runout-board { gap: 3px; }
-.in-game .table-stage.two-runouts .board-cards>.board-card-wrap>.card { width: clamp(28px,7.6vw,38px); height: clamp(39px,10.5vw,52px); }
+.in-game .table-stage.two-runouts .board-cards>.board-card-wrap>.card { width: clamp(32px,9.5vw,50px); height: clamp(45px,13.5vw,70px); }
 @media(max-width:360px) {
  .in-game .seat.occupied:not(.your-seat) { width: 70px; }
  .in-game .table-stage { --seat-edge-x: 45px; }
@@ -5219,3 +5227,164 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 .app.in-game.composing-chat .table-motion, .app.in-game.composing-chat .reaction-overlay, .app.in-game.composing-chat .reaction-picker { display: none; }
 .app.in-game.composing-chat .typing-turn-status.is-your-turn { color: #a5e9c1; font-weight: 700; }
+
+/* Hand phases replace controls, not the table's geometry. Reserve the complete
+   toolbar/card/slider/button footprint even while voting or between hands. */
+.app.in-game:not(.composing-chat) .play-area {
+  --stable-hand-height: 104px;
+  --stable-button-height: 55px;
+  --stable-row-gaps: 10px;
+  --stable-panel-padding: 12px;
+  --stable-panel-height: calc(44px + var(--stable-hand-height) + 37px + 6px + var(--stable-button-height) + var(--stable-row-gaps) + var(--stable-panel-padding) + 2px + var(--table-safe-bottom, env(safe-area-inset-bottom)));
+  grid-template-rows: auto minmax(0,1fr) var(--stable-panel-height);
+}
+.app.in-game:not(.composing-chat) .action-zone {
+  height: var(--stable-panel-height);
+  min-height: var(--stable-panel-height);
+  max-height: var(--stable-panel-height);
+  align-self: stretch;
+}
+.app.in-game:not(.composing-chat) .between-hands { flex: 1 0 0; height: auto; min-height: 0; }
+.preaction-button { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.in-game .action-buttons > .preaction-button { white-space: normal; font-size: clamp(12px,3.4vw,16px); }
+.preaction-checkbox { flex: 0 0 16px; width: 16px; height: 16px; border: 1.5px solid currentColor; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; }
+.preaction-button[aria-checked=true] .preaction-checkbox { background: #e5c88b; color: #183326; border-color: #e5c88b; }
+.preaction-button[aria-checked=true] { outline: 2px solid #e5c88b; outline-offset: -3px; }
+@media(max-width:620px) {
+  .app.in-game:not(.composing-chat) .play-area { --stable-hand-height: 101px; --stable-button-height: 54px; --stable-row-gaps: 8px; --stable-panel-padding: 9px; }
+}
+@media(max-height:700px) {
+  .app.in-game:not(.composing-chat) .play-area { --stable-hand-height: 80px; --stable-button-height: 50px; }
+}
+
+/* Nameplates anchor both card peeks and wagers; neither changes seat geometry. */
+.in-game .seat.cards-concealed .seat-top { display: flex; height: 10px; position: relative; z-index: 0; overflow: visible; }
+.in-game .seat.cards-concealed .hole-cards { position: absolute; bottom: -17px; left: 50%; transform: translateX(-50%); }
+.in-game .your-seat .hole-cards > span { width: auto; min-width: 0; }
+.in-game .your-seat .hole-cards > span:last-child { width: auto; }
+.in-game .seat.your-seat .hole-cards .card.small { width: 23px; height: 27px; margin-left: -10px; border-radius: 3px; padding: 0; transform: none; }
+.in-game .your-seat.omaha-seat .hole-cards .card.small { width: 20px; margin-left: 0; }
+.in-game .seat .seat-info .seat-bet { position: absolute; width: max-content; height: auto; margin: 0; pointer-events: none; }
+.in-game .seat[data-bet-direction=above] .seat-bet { top: auto; bottom: calc(100% + 17px); left: 50%; right: auto; transform: translateX(-50%); }
+.in-game .seat[data-bet-direction=below] .seat-bet { top: calc(100% + 5px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); }
+.in-game .seat[data-bet-direction=right] .seat-bet { top: 50%; bottom: auto; left: calc(100% + 5px); right: auto; transform: translateY(-50%); }
+.in-game .seat[data-bet-direction=left] .seat-bet { top: 50%; bottom: auto; right: calc(100% + 5px); left: auto; transform: translateY(-50%); }
+
+/* Winner content grows down from a fixed board origin, never recentres it. */
+.app.in-game:not(.composing-chat) .table-stage .board-zone { inset: auto; top: calc(31% - 64px); left: 50%; width: min(65%,340px); height: auto; padding: 0; transform: translateX(-50%); justify-content: flex-start; }
+.app.in-game:not(.composing-chat) .board-zone .pot-label { height: 12px; line-height: 12px; }
+.app.in-game:not(.composing-chat) .table-stage .pot-amount { height: 32px; line-height: 32px; margin: 0 0 4px; }
+.app.in-game:not(.composing-chat) .table-stage .runout-boards { position: relative; width: 100%; gap: 0; }
+.app.in-game:not(.composing-chat) .table-stage .runout-board { position: relative; width: 100%; flex: 0 0 auto; min-height: 0; gap: 0; }
+.app.in-game:not(.composing-chat) .table-stage .runout-board + .runout-board { margin-top: 8px; }
+.app.in-game:not(.composing-chat) .table-stage .run-board-label { position: absolute; right: calc(100% + 4px); top: 4px; white-space: nowrap; }
+.app.in-game:not(.composing-chat) .table-stage .runout-board .table-awards { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 5px; }
+.in-game .hand-toolbar { gap: 6px; min-width: 0; }
+.termination-status { color: #dfc589; font-size: 10px; line-height: 1.2; max-width: 88px; }
+.in-game .hand-toolbar .turn-status { min-width: 0; flex: 1; }
+.in-game .hand-toolbar:has(.termination-status) .hand-toolbar-actions > .text-button { display: none; }
+.game-ended-actions { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.game-ended-actions > span { font-size: 12px; color: var(--muted); }
+.in-game .between-hands:has(.game-ended-actions) { min-height: 0; overflow-y: auto; }
+.in-game .action-zone:has(.game-ended-actions) .personal-hand { display: none; }
+/* Side wagers sit on the inward upper corner, clear of the community row. */
+.in-game .seat[data-bet-direction=right] .seat-bet,
+.in-game .seat[data-bet-direction=left] .seat-bet { top: auto; bottom: calc(100% + 5px); transform: none; }
+/* Reserve the same readable, two-run-safe card footprint from the first street. */
+.app.in-game:not(.composing-chat) .table-stage .board-cards > .board-card-wrap > .card,
+.app.in-game:not(.composing-chat) .table-stage.two-runouts .board-cards > .board-card-wrap > .card { width: clamp(32px,9.5vw,50px); height: clamp(45px,13.5vw,70px); }
+@media(max-width:360px) {
+  .app.in-game:not(.composing-chat) .table-stage .board-cards > .board-card-wrap > .card,
+  .app.in-game:not(.composing-chat) .table-stage.two-runouts .board-cards > .board-card-wrap > .card { width: 26px; height: 36px; }
+}
+@media(max-width:360px) {
+  .in-game .seat-bet { font-size: 12px; padding: 2px 4px; }
+}
+
+/* Results have their own space below both boards; no result-sized gap between runs. */
+.board-results { width: 100%; text-align: center; }
+.app.in-game:not(.composing-chat) .board-results { position: absolute; top: 100%; left: 0; margin-top: 4px; }
+.in-game .board-results .table-awards { min-height: 0; margin: 0; text-align: center; }
+.in-game .board-results .table-winner-name { text-align: center; font-size: 13px; }
+.in-game .board-results .table-winning-hand { font-size: 12px; line-height: 1.25; }
+.board-result-runs { display: flex; justify-content: center; gap: 10px; margin-bottom: 2px; }
+.board-result-runs button { min-height: 20px; padding: 0 4px; border: 0; background: transparent; color: var(--muted); font-size: 10px; }
+.board-result-runs button[aria-pressed=true] { color: #ffe1a0; text-decoration: underline; text-underline-offset: 3px; }
+/* Full face-up indices must stay exposed. Keep the nameplate anchored on reveal. */
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .seat-top { height: 10px; position: relative; overflow: visible; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .hole-cards { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); padding: 0; gap: 3px; width: max-content; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .hole-cards > span { margin: 0; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .hole-cards .card.small { width: 24px; height: 36px; margin: 0; padding: 2px; transform: none; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 1px; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .hole-cards .card.small b { font-size: 12px; line-height: 13px; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .hole-cards .card.small > span { align-self: flex-start; font-size: 16px; line-height: 16px; margin: 0; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat .hole-cards { gap: 0; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat .hole-cards > span + span { margin-left: 0; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat .hole-cards .card.small { width: clamp(18px,5vw,22px); height: 34px; padding: 1px; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat .hole-cards .card.small b { font-size: 11px; line-height: 13px; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat .hole-cards .card.small > span { font-size: 14px; line-height: 15px; }
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .seat-info { z-index: 1; }
+@media(max-height:700px) {
+  .app.in-game:not(.composing-chat) .table-stage .board-zone { top: calc(50% - 64px); }
+}
+@media(min-height:701px) {
+  .in-game .seat[data-bet-direction=right] .seat-bet,
+  .in-game .seat[data-bet-direction=left] .seat-bet { top: calc(100% + 5px); bottom: auto; }
+}
+.in-game .seat.occupied.cards-revealed:not(.your-seat) .card.dimmed-card { opacity: .7; }
+
+/* Payout amounts already appear below the board; badges must not cover exposed indices. */
+.in-game .table-stage:has(.board-results) .winner-badge { display: none; }
+.app.in-game:not(.composing-chat) .board-results { max-height: 60px; overflow-y: auto; overflow-x: hidden; }
+@media(max-height:700px) {
+  .app.in-game:not(.composing-chat) .board-results { max-height: 20px; }
+}
+/* The oval clips its own background; it must not mask result text at its curved edge. */
+.in-game .felt { overflow: visible; }
+.app.in-game:not(.composing-chat) .board-results { width: min(280px,calc(100% + 40px)); left: 50%; transform: translateX(-50%); }
+.in-game .board-results .table-winning-hand { font-size: 11.5px; white-space: normal; }
+
+.app.in-game:not(.composing-chat) .table-stage .board-cards .card b { font-size: clamp(17px,4.5vw,23px); line-height: 1; }
+.app.in-game:not(.composing-chat) .table-stage .board-cards .card > span { font-size: clamp(19px,5vw,27px); line-height: 1; }
+@media(max-width:360px) {
+  .app.in-game:not(.composing-chat) .table-stage .board-cards .card b { font-size: 12px; }
+  .app.in-game:not(.composing-chat) .table-stage .board-cards .card > span { font-size: 14px; }
+}
+@media(min-height:701px) {
+  .app.in-game:not(.composing-chat) .board-zone .pot-label { height: 8px; line-height: 8px; }
+  .app.in-game:not(.composing-chat) .table-stage .pot-amount { height: 28px; line-height: 28px; margin-bottom: 2px; }
+  .app.in-game:not(.composing-chat) .table-stage .runout-board + .runout-board { margin-top: 6px; }
+}
+.in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat[data-bet-direction=right] .hole-cards .card.small,
+.in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat[data-bet-direction=left] .hole-cards .card.small { width: 18px; }
+@media(min-width:361px) {
+  .in-game .seat.occupied.cards-revealed:not(.your-seat)[data-bet-direction=right] .hole-cards { left: calc(50% - 5px); }
+  .in-game .seat.occupied.cards-revealed:not(.your-seat)[data-bet-direction=left] .hole-cards { left: calc(50% + 5px); }
+}
+@media(max-width:360px) {
+  .in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat:is([data-bet-direction=left],[data-bet-direction=right]) .hole-cards .card.small { width: 16px; }
+  .in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat:is([data-bet-direction=left],[data-bet-direction=right]) .hole-cards .card.small b { font-size: 10px; }
+  .in-game .seat.occupied.cards-revealed:not(.your-seat).omaha-seat:is([data-bet-direction=left],[data-bet-direction=right]) .hole-cards .card.small > span { font-size: 12px; }
+  .in-game .seat.occupied.cards-revealed:not(.your-seat)[data-bet-direction=right] .hole-cards { left: calc(50% - 3px); }
+  .in-game .seat.occupied.cards-revealed:not(.your-seat)[data-bet-direction=left] .hole-cards { left: calc(50% + 3px); }
+}
+/* Short landscape screens need table and controls beside each other, not stacked. */
+@media(min-width:700px) and (max-height:500px) {
+  .app.in-game:not(.composing-chat) .play-area { grid-template-columns: minmax(0,1fr) 300px; grid-template-rows: 38px minmax(0,1fr); }
+  .app.in-game:not(.composing-chat) .rotation-bar { grid-column: 1 / -1; }
+  .app.in-game:not(.composing-chat) .table-stage { grid-column: 1; grid-row: 2; width: 100%; height: 100%; min-height: 0; max-width: none; }
+  .app.in-game:not(.composing-chat) .play-area > .action-zone { grid-column: 2; grid-row: 2; height: 100%; min-height: 0; max-height: 100%; }
+  .app.in-game:not(.composing-chat) .table-stage .board-zone { top: calc(35% - 64px); }
+  .app.in-game:not(.composing-chat) .table-stage .board-cards > .board-card-wrap > .card,
+  .app.in-game:not(.composing-chat) .table-stage.two-runouts .board-cards > .board-card-wrap > .card { width: 32px; height: 46px; }
+  .app.in-game:not(.composing-chat) .table-stage .board-cards .card b { font-size: 16px; }
+  .app.in-game:not(.composing-chat) .table-stage .board-cards .card > span { font-size: 19px; }
+}
+
+/* Opponent wagers stay close below the nameplate; the local wager stays above. */
+.in-game .seat:not(.your-seat) .seat-info .seat-bet { top: calc(100% + 3px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); margin: 0; }
+/* Build metadata must never widen the table or the keyboard typing view. */
+.in-game .rotation-bar .build-disclosure { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.app.in-game.composing-chat .rotation-bar .build-disclosure { display: none; }
+.app.in-game .play-area { grid-template-columns: minmax(0,1fr); }
+.app.in-game .rotation-bar { min-width: 0; max-width: 100%; overflow: hidden; }
+.in-game .rotation-bar .build-disclosure { flex: 0 1 auto; }

@@ -370,6 +370,43 @@ export async function runApiSuite(base, restart, environment = 'staging') {
         room = await api(host, null, code);
       }
       assert.equal(room.phase, 'showdown');
+      if (i === 0) {
+        const exportUrl = new URL(`/api/hand-history?code=${code}&format=json`, base);
+        const readExport = async () => {
+          const response = await request(exportUrl, {headers: {Cookie: cookies.get(host)}});
+          assert.equal(response.status, 200);
+          assert.match(response.headers.get('cache-control'), /no-store/);
+          return response.json();
+        };
+        const before = await readExport();
+        assert.equal(before.hands.length, 1);
+        assert.equal(before.hands[0].visibleHoleCards.length, 1, 'Uncontested opponents stay private');
+        assert.deepEqual(before.hands[0].visibleHoleCards[0].cards, privateHost.players.find(p => p.id === host).cards);
+        const own = await api(friend, null, code);
+        const reveal = commandEnvelope({type: 'voluntary_reveal', code}, own);
+        await api(friend, reveal);
+        await api(friend, reveal); // A lost reply cannot reveal twice.
+        room = await api(host, null, code);
+        assert.deepEqual(room.players.find(p => p.name === 'Integration Friend').cards, privateFriend.players.find(p => p.id === friend).cards);
+        const hunt = commandEnvelope({type: 'rabbit_hunt', code}, room);
+        await api(host, hunt);
+        await api(host, hunt);
+        room = await api(host, null, code);
+        const after = await readExport();
+        assert.equal(after.hands[0].reveals.length, 1);
+        assert.equal(after.hands[0].rabbitHunt.board.length, 5);
+        assert.equal(after.hands[0].visibleHoleCards.length, 2);
+        assert.ok(!JSON.stringify(after).includes(host));
+        assert.ok(!JSON.stringify(after).includes(friend));
+        assert.equal(JSON.stringify(after).includes('privateCards'), false);
+        const csv = await request(new URL(`/api/hand-history?code=${code}&format=csv`, base), {headers: {Cookie: cookies.get(host)}});
+        assert.equal(csv.status, 200);
+        assert.match(await csv.text(), /rabbit_hunt/);
+        const unauthorized = await request(exportUrl);
+        assert.equal(unauthorized.status, 401);
+        await unauthorized.arrayBuffer();
+        console.log('Verified authenticated JSON/CSV exports, hidden-card privacy, voluntary seat reveal, Rabbit Hunt and command retry deduplication.');
+      }
       assert.equal(room.players.reduce((n, p) => n + p.stack, 0), 2850);
       await assert.rejects(api(host, commandEnvelope({
         type: 'deal',

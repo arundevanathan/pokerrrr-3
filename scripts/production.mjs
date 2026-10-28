@@ -11,6 +11,7 @@ function run(args, env = process.env) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 if (command === 'build') {
+  run(['scripts/write-build-info.mjs']);
   run(['node_modules/vinext/dist/cli.js', 'build'], {
     ...process.env,
     POKER_DEPLOY_TARGET: 'production',

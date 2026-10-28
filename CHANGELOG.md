@@ -1,5 +1,19 @@
 # Changelog
 
+## Staging — Phase 1 integration, 28 October 2026
+
+- Centre opponent wagers close below their nameplates; keep the local wager above.
+- Integrate Aditya Roongta’s PR #35: authenticated player-scoped JSON/CSV action
+  history, Rabbit Hunt, voluntary reveals and app build disclosure.
+- Show voluntary reveals at the player’s seat as well as in history. Preserve the
+  existing five-card winner highlights and compact result layout.
+- Correct blind sizes and short-table position labels in CSV exports; prevent
+  build metadata from widening the table or keyboard typing view.
+- New private-card/action archives apply to newly dealt hands. Earlier records
+  are not reconstructed; use new hands for acceptance testing.
+- Detailed combined staging test guide: [Table actions](docs/TABLE_ACTIONS.md).
+
+
 ## v2.1.1 — 28 October 2026
 
 Priority connection-recovery fix.

@@ -2,6 +2,7 @@ import test from 'node:test';
 import {payoutEvents} from '../lib/table-presentation.mjs';
 import assert from 'node:assert/strict';
 import { newRoom, command, startHand, legal, act, evaluate, rank5, view, settlement, tick, finish, returnUncalled, runoutCardsNeeded } from '../lib/poker.mjs';
+import { handHistoryCsv, publicHandRecord, viewerHandRecord } from '../lib/hand-history.mjs';
 const token = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const card = s => {
   const ranks = '23456789TJQKA',
@@ -49,6 +50,30 @@ test('hand evaluator distinguishes wheel, straight flush, full house and quads',
   assert.ok(rank5(cs('Ac 2c 3c 4c 5c')) > rank5(cs('Ah Ad As Ac Kh')));
   assert.ok(rank5(cs('Ah Ad As Ac Kh')) > rank5(cs('Kh Kd Ks Ac Ah')));
   assert.ok(rank5(cs('2c 3d 4h 5s 6c')) > rank5(cs('Ac 2d 3h 4s 5c')));
+});
+test('four-player exports show only self cards plus voluntary reveals, with Rabbit Hunt logged', () => {
+  const r = room(4);
+  startHand(r, 1_000);
+  while (r.phase !== 'showdown') act(r, r.turn, 'fold', undefined, 1_100);
+  const hand = r.history[0], revealer = r.players[1], hidden = r.players[2];
+  command(r, revealer.id, { type: 'voluntary_reveal' }, 1_200);
+  command(r, r.players[3].id, { type: 'rabbit_hunt' }, 1_300);
+  assert.equal(hand.reveals[0].seat, revealer.seat);
+  assert.equal(hand.rabbitHunt.requestedBy.seat, r.players[3].seat);
+  assert.equal(hand.rabbitHunt.board.length, 5);
+  assert.ok(hand.actionLog.some(event => event.type === 'rabbit_hunt'));
+  const viewer = r.players[0], own = hand.privateCards.find(player => player.id === viewer.id);
+  const exported = viewerHandRecord(publicHandRecord(r.code, hand), own);
+  assert.deepEqual(exported.visibleHoleCards.map(player => player.seat).sort((a, b) => a - b), [viewer.seat, revealer.seat].sort((a, b) => a - b));
+  assert.ok(!JSON.stringify(exported).includes(hidden.cards.join(',')));
+  const csv = handHistoryCsv([exported]);
+  assert.match(csv, /rabbit_hunt/);
+  const publicView = view(r, viewer.id);
+  assert.ok(!JSON.stringify(publicView).includes(hidden.id));
+  assert.equal(JSON.stringify(publicView).includes('privateCards'), false);
+  assert.deepEqual(publicView.players.find(p => p.seat === revealer.seat).cards, revealer.cards);
+  assert.equal(publicView.players.find(p => p.seat === hidden.seat).cards, undefined);
+  assert.equal(r.players.reduce((n, p) => n + p.stack, 0), 4000);
 });
 test('Omaha uses exactly two hole cards and three board cards', () => {
   const board = cs('Ac Kc Qc Jc Tc'),
@@ -1037,4 +1062,21 @@ test('fold victory returns the unmatched blind before awarding the contested pot
   assert.equal(r.lastPot, 10); assert.equal(r.result[0].amount, 10);
   assert.equal(r.uncalledReturns[0].amount, 5);
   assert.equal(big.stack, 1005); conservation(r);
+});
+
+test('action CSV exports blind sizes and short-table positions in dealer order', () => {
+  for (const [count, labels] of [[2, ['BTN/SB', 'BB']], [4, ['BTN', 'SB', 'BB', 'CO']], [6, ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO']], [8, ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'LJ', 'HJ', 'CO']]]) {
+    const seats = Array.from({ length: count }, (_, index) => ({ seat: (index + 3) % 8, name: `P${index}` }));
+    const record = { sessionCode: 'ABC234', handNumber: 1, dealerSeat: 3, seats, actionLog: [
+      { type: 'blinds_posted', smallBlind: { seat: seats[0].seat, name: seats[0].name, amount: 5, stackAfter: 995 }, bigBlind: { seat: seats[1].seat, name: seats[1].name, amount: 10, stackAfter: 990 } },
+      ...seats.map(p => ({ type: 'check', street: 'flop', ...p }))
+    ] };
+    // The deliberately rotated array checks both wraparound and shorter tables.
+    const ordered = [...seats].sort((a, b) => (a.seat - 3 + 8) % 8 - (b.seat - 3 + 8) % 8);
+    const expected = new Map(ordered.map((p, i) => [p.seat, labels[i]]));
+    const rows = handHistoryCsv([record]).split('\n').map(line => line.slice(1, -1).split('","'));
+    assert.equal(rows[1][9], '5');
+    assert.equal(rows[2][9], '10');
+    seats.forEach((p, index) => assert.equal(rows[index + 3][7], expected.get(p.seat)));
+  }
 });

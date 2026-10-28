@@ -1,6 +1,7 @@
 import { historyRange, aggregateGames, suggestedPayments, householdPair, historyPlayerKey, publicHistory } from '../lib/game-history.mjs';
 import { newRoom, command, view, tick } from '../lib/poker.mjs';
 import { parseCommand, playerToken, roomCode } from '../lib/protocol/poker.mjs';
+import { publicHandRecord, viewerHandRecord } from '../lib/hand-history.mjs';
 export class TableError extends Error {
   constructor(message, status = 400) {
     super(message);
@@ -70,8 +71,14 @@ export class TableService {
       });
     }
     await tx.put(`room:${room.code}`, room);
-    if (!previous || previous.phase !== room.phase || previous.completed !== room.completed) {
-      for (const hand of room.history.filter(h => h.number > (previous?.completed || 0))) {
+    if (!previous || previous.phase !== room.phase || previous.completed !== room.completed || room.history.some(hand => {
+      const before = previous?.history?.find(item => item.number === hand.number);
+      return before?.updatedAt !== hand.updatedAt;
+    })) {
+      for (const hand of room.history.filter(hand => {
+        const before = previous?.history?.find(item => item.number === hand.number);
+        return !before || before.updatedAt !== hand.updatedAt;
+      })) {
         await tx.put(`hand:${room.code}:${String(hand.number).padStart(10, '0')}`, {
           ...hand,
           completedAt: room.showdownAt
@@ -197,6 +204,27 @@ export class TableService {
         to: await historyPlayerKey(to)
       })))
     };
+  }
+  async handHistory(token, code) {
+    playerToken.parse(token);
+    if (code) roomCode.parse(code);
+    const records = [];
+    let startAfter;
+    const prefix = code ? `hand:${code}:` : 'hand:';
+    for (;;) {
+      const page = await this.storage.list({ prefix, limit: 128, ...(startAfter && { startAfter }) });
+      for (const [key, hand] of page) {
+        const ownCards = hand.privateCards?.find(player => player.id === token);
+        if (!ownCards) continue;
+        const sessionCode = key.split(':')[1];
+        records.push(viewerHandRecord(publicHandRecord(sessionCode, hand), ownCards));
+      }
+      if (page.size < 128) break;
+      startAfter = [...page.keys()].at(-1);
+    }
+    // A player may download only hands in which they were dealt.  Sorting is
+    // stable across sessions and works even while the current game is live.
+    return records.sort((a, b) => b.completedAt - a.completedAt || b.sessionCode.localeCompare(a.sessionCode) || b.handNumber - a.handNumber);
   }
   async snapshot(token, code) {
     playerToken.parse(token);

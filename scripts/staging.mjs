@@ -22,6 +22,7 @@ if (command === 'dev') {
   process.exit(0);
 }
 if (command === 'build') {
+  run(['scripts/write-build-info.mjs']);
   run(['node_modules/vinext/dist/cli.js', 'build'], {
     ...process.env,
     POKER_DEPLOY_TARGET: 'staging',

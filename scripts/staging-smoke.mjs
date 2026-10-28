@@ -11,7 +11,7 @@ import { once } from 'node:events';
 import { validateProductionArtifact } from '../lib/production-artifact.mjs';
 import { validateStagingArtifact } from '../lib/staging-artifact.mjs';
 import { runApiSuite, localTarget } from '../tests/api.test.mjs';
-const base = process.env.POKER_STAGING_TEST_URL || 'http://127.0.0.1:8787';
+const base = process.env.POKER_STAGING_TEST_URL || `http://127.0.0.1:${process.env.POKER_SMOKE_PORT || 8787}`;
 localTarget(base);
 const environment = process.env.POKER_SMOKE_ENV || 'staging';
 if (!['staging', 'production'].includes(environment)) throw new Error('Unknown smoke environment');

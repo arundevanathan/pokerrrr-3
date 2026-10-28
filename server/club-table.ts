@@ -7,6 +7,7 @@ import { PROTOCOL_VERSION } from '../lib/protocol/poker.mjs';
 import { SocialService } from './social-service.mjs';
 import { presenceView } from '../lib/presence.mjs';
 import { reactionsEnabled } from '../lib/reactions.mjs';
+import { handHistoryCsv, handHistoryJson } from '../lib/hand-history.mjs';
 type Peer = {
   playerId: string;
   cookie: string;
@@ -169,6 +170,22 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
             demo,
             demoAvailable: available,
             timeZone: 'Asia/Kolkata'
+          });
+        }
+        if (url.pathname === '/api/hand-history' && request.method === 'GET') {
+          this.limit(`hand-history:${token}`, 30);
+          const format = url.searchParams.get('format') || 'json';
+          if (!['json', 'csv'].includes(format)) throw new TableError('Choose JSON or CSV export', 400);
+          const records = await this.service.handHistory(token, url.searchParams.get('code') || undefined);
+          const body = format === 'csv' ? handHistoryCsv(records) : handHistoryJson(records);
+          const filename = `dunzo-club-hand-history${url.searchParams.get('code') ? `-${url.searchParams.get('code')}` : ''}.${format}`;
+          return new Response(body, {
+            headers: {
+              'Cache-Control': 'no-store, private',
+              Vary: 'Cookie, Authorization',
+              'Content-Type': format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8',
+              'Content-Disposition': `attachment; filename="${filename}"`
+            }
           });
         }
         if (url.pathname === '/api/logout' && request.method === 'POST') {

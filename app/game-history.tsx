@@ -144,6 +144,24 @@ export function GameHistory({
       setSharing(false);
     }
   }
+  async function exportHands(format: 'csv' | 'json') {
+    if (!selected?.code) return;
+    setShareStatus('');
+    try {
+      const response = await fetch(`/api/hand-history?${new URLSearchParams({ code: selected.code, format })}`, { cache: 'no-store' });
+      if (!response.ok) {
+        const body: any = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Could not prepare hand history');
+      }
+      const blob = await response.blob(), url = URL.createObjectURL(blob), anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `dunzo-club-hand-history-${selected.code}.${format}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setShareStatus(e.message || 'Could not prepare hand history');
+    }
+  }
   return <section className="game-history" aria-label="Previous games">
 
     <div className="history-toolbar">
@@ -200,6 +218,8 @@ export function GameHistory({
         <p>
           {date(selected.closedAt)}
         </p>
+        <div className="post-hand-actions"><button className="secondary" onClick={() => void exportHands('csv')}>Download Action Log CSV</button><button className="secondary" onClick={() => void exportHands('json')}>Download JSON</button></div>
+        {shareStatus && <p role="status">{shareStatus}</p>}
         <table>
           <thead>
             <tr>
