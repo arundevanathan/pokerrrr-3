@@ -1,5 +1,18 @@
 # Changelog
 
+## Staging — Test UI lab, 28 October 2026
+
+- Add guided Quick/Full/Custom review, direct scenario selection and seeded simulation.
+- Cover 2–8 players, all three variants, own/opponent/tied winners, two runouts,
+  side pots, returns, post-hand actions, chat and player lifecycle controls.
+- Add virtual-clock pause/replay/step, viewport previews, explicit review marks and
+  downloadable/copyable reproduction reports.
+- Replace separate practice previews with Test UI and wire Simulate players into Start Game.
+- Add isolated real-Worker test sessions, synthetic identities, scoped cookies and
+  HTTP/socket/lost-reply/offline-reload fault controls; ordinary staging data is separate.
+- Gate all test pages and endpoints out of production; add scenario-matrix and
+  real-Worker isolation/restart checks to CI. See [Test Lab](docs/TEST_LAB.md).
+
 ## Staging — Phase 1 integration, 28 October 2026
 
 - Centre opponent wagers close below their nameplates; keep the local wager above.

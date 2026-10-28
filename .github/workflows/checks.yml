@@ -38,6 +38,11 @@ jobs:
           WRANGLER_SEND_METRICS: 'false'
           CLOUDFLARE_CF_FETCH_ENABLED: 'false'
 
+      - run: node scripts/test-lab-server-smoke.mjs
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+
   production-artifact:
     timeout-minutes: 8
     runs-on: ubuntu-latest
@@ -54,5 +59,10 @@ jobs:
       - run: pnpm exec wrangler deploy --config dist/server/wrangler.json --dry-run --outdir .wrangler/production-dry-run
       - run: pnpm run test:production:smoke
         env:
+          WRANGLER_SEND_METRICS: 'false'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      - run: node scripts/test-lab-server-smoke.mjs
+        env:
+          POKER_LAB_PRODUCTION: '1'
           WRANGLER_SEND_METRICS: 'false'
           CLOUDFLARE_CF_FETCH_ENABLED: 'false'

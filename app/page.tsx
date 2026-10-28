@@ -19,6 +19,8 @@ import { newRoom, command, startHand, act, legal, view, resolveAlias, tick, shor
 import { PokerClient, type Connection } from '../lib/client/poker-client';
 import { GameHistory } from './game-history';
 import { PlayerLobby, PinSettings } from './player-lobby';
+import { installLocalLab } from '../lib/test-lab/local-bridge';
+import { publicHandRecord, viewerHandRecord, handHistoryCsv, handHistoryJson } from '../lib/hand-history.mjs';
 import { showTestTools } from '../lib/client/environment';
 import { nextRaise, bettingOpportunity } from '../lib/client/raise-selection.mjs';
 import { preactionValid, resolvePreaction, queuePreaction, waitingCall as queuedCallAmount } from '../lib/client/preaction.mjs';
@@ -67,7 +69,10 @@ function Card({
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
 const enableReactions = reactionsEnabled(process.env.NEXT_PUBLIC_APP_ENV);
-export default function Home() {
+export default function Home({lab = false}: {lab?: boolean} = {}) {
+  const [labTime, setLabTime] = useState(Date.now());
+  const [labPlaying,setLabPlaying] = useState(false);
+  const labRuntime = useRef<any>(null);
   const [room, setRoom] = useState<Room>(null),
     [name, setName] = useState(''),
     [rotation] = useState(3),
@@ -96,7 +101,7 @@ export default function Home() {
   if (!audio.current) audio.current = new PokerAudio();
   const socialAudio = useRef<PokerAudio | null>(null);
   if (!socialAudio.current) socialAudio.current = new PokerAudio();
-  const effects = useTableEffects(room, audio.current),
+  const effects = useTableEffects(room, audio.current, lab ? labTime : undefined),
     animationBusy = useRef(false);
   animationBusy.current = effects.presentationBusy;
   const [player, setPlayer] = useState<{
@@ -122,14 +127,14 @@ export default function Home() {
   const reactions = useReactions(current, demo, enableReactions);
   // HTTP replies and socket pushes can race. Never replace a newer snapshot.
   function update(r: Room) {
-    if (current.current?.code === r.code && current.current.version > r.version) return;
+    if (!lab && current.current?.code === r.code && current.current.version > r.version) return;
     const selection = nextRaise(current.current, r, raiseRef.current);
-    if (current.current?.handStartedAt !== r.handStartedAt || current.current?.code !== r.code) {
+    if (current.current?.handStartedAt !== r.handStartedAt || current.current?.code !== r.code || current.current?.labReplayKey !== r.labReplayKey) {
       setSelectedWinner('');
       setSelectedRun(0);
     }
     current.current = r;
-    offset.current = (r.serverTime || Date.now()) - Date.now();
+    offset.current = lab ? 0 : (r.serverTime || Date.now()) - Date.now();
     setRoom(r);
     if (r.legal) {
       setRaise(selection.amount);
@@ -137,6 +142,15 @@ export default function Home() {
     }
     if (selection.reset) setSelectedShortcut('');
   }
+  useEffect(() => {
+    if (!lab || !showTestTools) return;
+    return installLocalLab({playing:setLabPlaying, demo, token, runtime: labRuntime, update, identity: (p: any) => {setPlayer(p);setAuthLoading(false);setConnection('connected');}, time: (n: number) => {setLabTime(n);setClock(n);} });
+  }, [lab]);
+  useEffect(() => {
+    if(lab || !showTestTools || !location.pathname.startsWith('/test-lab/table') || !room)return;
+    window.parent.postMessage({type:'lab-state',backend:'server',connection,label:room.phase,expected:{phase:room.phase,variant:room.game,version:room.version,runCount:room.runCount,
+      winners:room.result?.map((p:any)=>({name:p.name,amount:p.wonAmount??p.amount})),chips:room.players.reduce((n:number,p:any)=>n+p.stack+p.cashout+(['showdown','closed'].includes(room.phase)?0:p.total),0),buyins:room.players.reduce((n:number,p:any)=>n+p.buyins,0)},transcript:room.handActionLog||[]},location.origin);
+  }, [room, connection]);
   const raiseRef = useRef(raise);
   raiseRef.current = raise;
   const identityRetry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -230,19 +244,18 @@ export default function Home() {
     const unlockSocial = () => socialAudio.current?.unlock();
     document.addEventListener('pointerdown', unlockSocial);
     document.addEventListener('keydown', unlockSocial);
-    const enabled = localStorage.getItem('hg-sound') !== 'off';
+    const enabled = !lab && localStorage.getItem('hg-sound') !== 'off';
     setSound(enabled);
     audio.current?.setEnabled(enabled);
     socialAudio.current?.setEnabled(enabled);
-    token.current = playerId();
-    void refreshIdentity();
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { });
+    if (!lab) { token.current = playerId(); void refreshIdentity(); }
+    if (!lab && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { });
     const installer = (e: any) => {
       e.preventDefault();
       setInstall(e);
     };
     window.addEventListener('beforeinstallprompt', installer);
-    const timer = setInterval(() => setClock(Date.now()), 500);
+    const timer = setInterval(() => {if (!lab) setClock(Date.now());}, 500);
     return () => {
       clearInterval(timer);
       clearTimeout(identityRetry.current);
@@ -261,7 +274,7 @@ export default function Home() {
     return () => { active = false; };
   }, []);
   useEffect(() => {
-    if (!player || !transport.current) return;
+    if (lab || !player || !transport.current) return;
     return transport.current.connect(state => {
       setLobby(state.lobby);
       const r = state.room;
@@ -272,6 +285,7 @@ export default function Home() {
   }, [player?.id, authEpoch]);
   useEffect(() => {
     const id = setInterval(() => {
+      if (lab) return;
       const r = demo.current;
       if (r?.phase === 'runout_vote') {
         for (const voter of r.runVote.voters) {
@@ -314,7 +328,7 @@ export default function Home() {
   useEffect(() => {
     const id = setInterval(() => {
       const r = demo.current;
-      if (!r || pending.current) return;
+      if (lab || !r || pending.current) return;
       try {
         if (tick(r)) update(view(r, token.current));
       } catch (e: any) {
@@ -342,18 +356,6 @@ export default function Home() {
       audio.current?.play('deal', 100);
     }
   }
-  function previewShowdown() {
-    if (!showTestTools) return;
-    const r = demo.current;
-    if (!r || r.phase === 'showdown') return;
-    let steps = 0;
-    while (r.turn && steps++ < 200) {
-      const l = legal(r, r.turn);
-      if (!l) break;
-      act(r, r.turn, l.call ? 'call' : 'check');
-    }
-    update(view(r, token.current));
-  }
   // Block duplicate taps and wait for a fresh connection before submitting actions.
   async function send(type: string, extra: any = {}) {
     if (pending.current) return false;
@@ -368,12 +370,14 @@ export default function Home() {
     setError('');
     try {
       if (demo.current) {
-        command(demo.current, token.current, {
+        if (lab && type==='deal') startHand(demo.current, labRuntime.current.now, labRuntime.current.newDeck(demo.current));
+        else command(demo.current, token.current, {
           type,
           ...extra,
           player: extra.player ? resolveAlias(demo.current, extra.player) : undefined
-        });
-        update(view(demo.current, token.current));
+        }, lab ? labRuntime.current.now : Date.now());
+        update(view(demo.current, token.current, lab ? labRuntime.current.now : Date.now()));
+        if(lab) {labRuntime.current?.record(type,extra);labRuntime.current?.report();}
       } else {
         const r = await api({
           type,
@@ -397,6 +401,11 @@ export default function Home() {
     if (!code) return;
     setError('');
     try {
+      if (demo.current) {
+        const records = demo.current.history.map((h: any) => viewerHandRecord(publicHandRecord(code, h), h.privateCards?.find((p: any) => p.id === token.current)));
+        const url = URL.createObjectURL(new Blob([format === 'csv' ? handHistoryCsv(records) : handHistoryJson(records)], {type: format === 'csv' ? 'text/csv' : 'application/json'}));
+        const a = document.createElement('a'); a.href=url;a.download=`simulation-${code}.${format}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
+      }
       const response = await fetch(`/api/hand-history?${new URLSearchParams({ code, format })}`, { cache: 'no-store' });
       if (!response.ok) {
         const body: any = await response.json().catch(() => ({}));
@@ -412,6 +421,7 @@ export default function Home() {
     }
   }
   async function openTable(settings: any) {
+    if (showTestTools && settings.simulate) { location.href = '/test-lab?config=' + encodeURIComponent(JSON.stringify({...settings, scenario: 'simulation', game: settings.games[0], players: settings.opponents+1})); return; }
     if (!player) return;
     setBusy(true);
     setError('');
@@ -439,55 +449,6 @@ export default function Home() {
       setBusy(false);
     }
   }
-  // Practice is isolated in demo.current and never sends multiplayer commands.
-  function practice() {
-    if (!showTestTools) return;
-    setError('');
-    const r = newRoom('DEMO', token.current, {
-      name: name.trim() || 'You',
-      sb,
-      bb,
-      buyin,
-      seats: 8,
-      rotation
-    });
-    for (const n of ['Alex', 'Sam', 'Jamie', 'Rohan', 'Priya']) {
-      const id = playerId();
-      command(r, id, {
-        type: 'join',
-        name: n,
-        buyin
-      });
-    }
-    demo.current = r;
-    startHand(r);
-    update(view(r, token.current));
-  }
-  function previewAllIn() {
-    if (!showTestTools) return;
-    const r: Room = newRoom('DEMO', token.current, {
-      name: name.trim() || 'You',
-      sb,
-      bb,
-      buyin,
-      seats: 2,
-      rotation
-    }),
-      other = playerId();
-    command(r, other, {
-      type: 'join',
-      name: 'Alex',
-      buyin
-    });
-    r.paused = true;
-    startHand(r, Date.now() - 6000);
-    act(r, r.turn, 'raise', legal(r, r.turn)!.max);
-    act(r, r.turn, 'call');
-    demo.current = r;
-    setPanel('');
-    setError('');
-    update(view(r, token.current));
-  }
   async function retryLastAction() {
     if (pending.current) return;
     pending.current = true;
@@ -506,6 +467,7 @@ export default function Home() {
     }
   }
   async function exit() {
+    if (showTestTools && location.pathname.startsWith('/test-lab/table')) {if(lab)labRuntime.current?.exit();else window.parent.postMessage({type:'lab-exit'},location.origin);return;}
     const r = current.current;
     const leaving = r?.players.find((p: any) => p.id === r.me && !p.left);
     if (enableReactions && leaving && !leaving.away && !leaving.pendingSeatAction && r.phase !== 'closed') {
@@ -560,7 +522,7 @@ export default function Home() {
   const voting = room?.phase === 'runout_vote',
     handActive = live || voting;
   useEffect(() => {
-    if (!voting) return;
+    if (lab || !voting) return;
     const id = setInterval(() => setClock(Date.now()), 100);
     return () => clearInterval(id);
   }, [voting]);
@@ -612,10 +574,10 @@ export default function Home() {
   const canQueueAction = Boolean(live && !myTurn && me?.inHand && !me.folded && !me.away && me.stack > 0);
   const clampRaise = (v: number) => Math.min(raiseMax, Math.max(raiseMin, Math.round(v || raiseMin)));
   const buildDisclosure = buildInfo?.builtAt ? `Updated ${new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(buildInfo.builtAt))} · ${buildInfo.revision}${buildInfo.dirty ? ' + local changes' : ''}` : 'Build information unavailable';
-  return <div ref={appViewport} className={`app ${room ? 'in-game' : ''} ${social.open ? 'composing-chat' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
+  return <div ref={appViewport} className={`app ${lab && !labPlaying ? 'lab-clock-paused' : ''} ${room ? 'in-game' : ''} ${social.open ? 'composing-chat' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
 
     <header className="topbar">
-      <button className="brand" onClick={room ? exit : undefined} aria-label="Dunzo Club">
+      <button className="brand" onClick={() => {if(showTestTools && location.pathname.startsWith('/test-lab/table'))window.parent.postMessage({type:'lab-controls'},location.origin);else if(room)void exit();}} aria-label="Dunzo Club">
         <span className="brand-icon">♠</span>
         <span>Dunzo Club<span className="brand-dot">.</span>{isStaging && <small className="staging-badge">STAGING</small>}</span>
       </button>
@@ -632,7 +594,7 @@ export default function Home() {
         {room ? <>
           <span className="connection">
             <i />
-            {demo.current ? 'Practice table' : connection === 'connected' ? 'Live table' : connection === 'offline' ? 'Offline' : 'Reconnecting…'}
+            {demo.current ? (lab ? 'Test simulation' : 'Simulation') : connection === 'connected' ? 'Live table' : connection === 'offline' ? 'Offline' : 'Reconnecting…'}
           </span>
           <button className="icon-button" onClick={() => setPanel('menu')} aria-label="Table menu">
             <MoreHorizontal size={22} />
@@ -648,7 +610,7 @@ export default function Home() {
 
     {!room ? <main className="lobby simple-lobby">
 
-      <PlayerLobby player={player} players={players} activeGame={lobby.activeGame} loading={authLoading} busy={busy} error={error} onLogin={login} onOpen={openTable} onPractice={showTestTools ? practice : undefined} onRetry={retryLastAction} hasPending={transport.current?.hasPending() || false} />
+      <PlayerLobby player={player} players={players} activeGame={lobby.activeGame} loading={authLoading} busy={busy} error={error} onLogin={login} onOpen={openTable} onPractice={showTestTools ? () => {location.href='/test-lab';} : undefined} onRetry={retryLastAction} hasPending={transport.current?.hasPending() || false} />
 
       {player && <GameHistory key={player.id} refreshKey={lobby.activeGame?.code || ''} />}
 
@@ -702,8 +664,9 @@ export default function Home() {
                           const shown = effects.boardVisible(i, runIndex),
                             value = shown ? board[i] : undefined,
                             winningBoard = effects.resultReady && runIndex + 1 === focusedRunNumber ? focusedHand?.boardCards || [] : [],
-                            timeline = runIndex === 1 ? effects.board2 : effects.board;
-                          return <div key={`${room.handStartedAt || 0}:${runIndex}:${i}:${shown}`} className={value !== undefined && timeline?.events.some((e: any) => e.index === i) ? 'board-card-wrap board-dealt' : 'board-card-wrap'}>
+                            timeline = runIndex === 1 ? effects.board2 : effects.board,
+                            animationEvent=timeline?.events.find((e:any)=>e.index===i);
+                          return <div style={lab && animationEvent ? {animationPlayState:'paused',animationDelay:`${timeline.startedAt + animationEvent.at - labTime}ms`} : undefined} key={`${room.handStartedAt || 0}:${runIndex}:${i}:${shown}`} className={value !== undefined && timeline?.events.some((e: any) => e.index === i) ? 'board-card-wrap board-dealt' : 'board-card-wrap'}>
                             <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />
                           </div>;
                         })}
@@ -1016,7 +979,6 @@ export default function Home() {
         {panel === 'menu' && <>
           <h2>Table Menu</h2>
           <div className="menu-list">
-            {showTestTools && demo.current && <button onClick={previewAllIn}><Layers3 size={18} /> Preview all-in vote</button>}
             {seated && room.phase !== 'closed' && <>
               <button onClick={() => send('ready')} disabled={controlsBusy || me.pendingSeatAction === 'leave' || room.terminationPending}>
                 {me.pendingSeatAction === 'sit_out' ? 'Cancel Sit Out' : me.away ? 'Sit In' : 'Sit Out'}
@@ -1028,7 +990,7 @@ export default function Home() {
             }}>{me.pendingSeatAction === 'leave' ? 'Cancel Stand Up' : 'Stand Up'}</button>}
             <button onClick={() => setPanel('history')}>Hand History</button>
             <button onClick={() => setPanel('info')}>Game Info</button>
-            {showTestTools && demo.current && live && <button disabled={effects.presentationBusy} onClick={previewShowdown}>Preview showdown</button>}
+
             {room.phase !== 'closed' && <button className="danger" disabled={controlsBusy || room.terminationPending} onClick={() => { setConfirm('end'); setPanel('confirm'); }}>
               {room.terminationPending ? 'Termination Pending' : 'Terminate Game'}
             </button>}

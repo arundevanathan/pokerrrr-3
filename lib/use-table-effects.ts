@@ -3,12 +3,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { dealPlan, boardPlan, showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack } from './table-presentation.mjs';
 import { PokerAudio } from './poker-audio';
-export function useTableEffects(room: any, audio: PokerAudio | null) {
+export function useTableEffects(room: any, audio: PokerAudio | null, virtualNow?: number) {
   const [flow, setFlow] = useState<any>({}),
     [now, setNow] = useState(Date.now());
   const previous = useRef<any>(null),
     heard = useRef<any>(null);
-  const handKey = room ? `${room.code}:${room.handStartedAt ?? (room.phase === 'showdown' ? room.completed : room.completed + 1)}` : '';
+  const handKey = room ? `${room.code}:${room.handStartedAt ?? (room.phase === 'showdown' ? room.completed : room.completed + 1)}:${room.labReplayKey || ''}` : '';
   useLayoutEffect(() => {
     if (!room) {
       previous.current = null;
@@ -21,7 +21,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
       newHand = first || before.handKey !== handKey,
       changedBoard = newHand || before.boardCount !== room.board.length,
       newResult = room.phase === 'showdown' && (newHand || before.phase !== 'showdown');
-    const timestamp = Date.now(),
+    const timestamp = virtualNow ?? Date.now(),
       serverNow = room.serverTime || timestamp;
     let next: any = {};
     if (newHand) {
@@ -92,6 +92,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
     setNow(timestamp);
   }, [room?.code, handKey, room?.board.length, room?.runCount, room?.phase, audio]);
   useEffect(() => {
+    if (virtualNow !== undefined) return;
     const end = Math.max(flow.deal ? flow.deal.startedAt + flow.deal.duration : 0, flow.board ? flow.board.startedAt + (flow.board.events.at(-1)?.at || 0) + 450 : 0, flow.showdown ? flow.showdown.startedAt + flow.showdown.plan.payoutDuration + 100 : 0);
     if (end <= Date.now()) return;
     const id = setInterval(() => {
@@ -123,6 +124,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
       audio?.cancel();
     };
   }, [audio]);
+  useLayoutEffect(() => { if (virtualNow !== undefined) setNow(virtualNow); }, [virtualNow]);
   const deal = flow.handKey === handKey ? flow.deal : null,
     dealing = Boolean(deal && now < deal.startedAt + deal.duration),
     board = flow.handKey === handKey ? flow.board : null,
@@ -137,6 +139,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
     resultReady = room?.phase === 'showdown' && ['award', 'summary'].includes(stage.phase);
   return {
     now,
+    controlledNow:virtualNow,
     dealing,
     deal,
     board,
