@@ -124,8 +124,8 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     takeSeat: false,
     rotation: 2,
     seats: 8,
-    sb: 5,
-    bb: 10,
+    sb: 10,
+    bb: 20,
     buyin: 1000
   });
   let room = await api(host, create),
@@ -460,6 +460,10 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     assert.equal(history.games.length, 1);
     assert.equal(history.games[0].players.reduce((n, p) => n + p.net, 0), 0);
     for (const id of [host, friend]) assert.ok(!JSON.stringify(history).includes(id));
+    const myHistory = await (await request(new URL('/api/history?mine=1', base), {
+      headers
+    })).json();
+    assert.equal(myHistory.games.length, 0);
     const participantHistory = await (await request(new URL('/api/history', base), {
       headers: {
         Cookie: cookies.get(host)
@@ -467,6 +471,13 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     })).json();
     assert.equal(participantHistory.viewerKey, await historyPlayerKey(host));
     assert.ok(participantHistory.games[0].players.some(p => p.key === participantHistory.viewerKey));
+    const participantMyHistory = await (await request(new URL('/api/history?mine=1', base), {
+      headers: {
+        Cookie: cookies.get(host)
+      }
+    })).json();
+    assert.equal(participantMyHistory.games.length, 1);
+    assert.ok(participantMyHistory.games[0].players.some(p => p.key === participantMyHistory.viewerKey));
     const day = indiaDate(room.closedAt),
       settled = await (await request(new URL(`/api/settlement?from=${day}&to=${day}`, base), {
         headers

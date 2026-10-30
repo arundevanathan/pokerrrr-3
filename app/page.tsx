@@ -854,7 +854,11 @@ export default function Home() {
                 <div className="betting-controls">
                   <div className="slider-shortcuts">
                     <div className="raise-slider-control">
-                      <input type="range" aria-label="Raise amount slider" min={0} max={1000} step={1} value={raiseMax > raiseMin ? Math.round(Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 1000) : 0} disabled={!myTurn || controlsBusy || effects.presentationBusy || !l?.canRaise || raiseMin === raiseMax} onChange={e => {
+                      <output className="raise-slider-readout" htmlFor="raise-amount-slider" aria-label={myTurn && l?.canRaise ? `Raise to ${fmt(raiseValue)}` : 'Raise unavailable'}>
+                        <span>Raise to</span>
+                        <strong>{myTurn && l?.canRaise ? fmt(raiseValue) : '—'}</strong>
+                      </output>
+                      <input id="raise-amount-slider" type="range" aria-label="Raise amount slider" aria-valuetext={myTurn && l?.canRaise ? `Raise to ${fmt(raiseValue)}` : 'Raise unavailable'} min={0} max={1000} step={1} value={raiseMax > raiseMin ? Math.round(Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 1000) : 0} disabled={!myTurn || controlsBusy || effects.presentationBusy || !l?.canRaise || raiseMin === raiseMax} onChange={e => {
                         setSelectedShortcut('');
                         const fraction = Number(e.target.value) / 1000;
                         const raw = raiseMin + (raiseMax - raiseMin) * fraction * fraction;

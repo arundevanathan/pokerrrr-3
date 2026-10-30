@@ -91,7 +91,7 @@ export function PlayerLobby({
             </label>)}
           </fieldset>
 
-          <label>Big Blind<input type="number" min={2} max={100000} step={2} value={bb} onChange={e => setBb(Number(e.target.value))} required /><small>Small Blind: {bb > 0 ? bb / 2 : 0}</small></label>
+          <label>Big Blind<input type="number" min={20} max={300} step={2} value={bb} onChange={e => setBb(Number(e.target.value))} required /><small>Allowed: 20–300 · Small Blind: {bb > 0 ? bb / 2 : 0}</small></label>
 
           <label>Time to act<select value={timer} onChange={e => setTimer(Number(e.target.value))}>
             {[10, 15, 20, 30].map(n => <option key={n} value={n}>{n} seconds</option>)}

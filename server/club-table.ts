@@ -160,6 +160,11 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
             from: url.searchParams.get('from') || undefined,
             to: url.searchParams.get('to') || undefined,
             cursor: url.searchParams.get('cursor') || undefined,
+            // The Home-screen hand-history view must never become a directory
+            // of the club's games.  Limit it to sessions in which this signed-in
+            // player actually participated.
+            participantId: url.searchParams.get('mine') === '1' ? token : undefined,
+            participantName: demo && url.searchParams.get('mine') === '1' ? player.name : undefined,
             examples,
             roster: this.auth.players()
           };

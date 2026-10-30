@@ -146,6 +146,8 @@ export class TableService {
     from,
     to,
     cursor,
+    participantId,
+    participantName,
     examples
   } = {}) {
     let records = await this.completedGames({
@@ -153,6 +155,10 @@ export class TableService {
       to,
       examples
     });
+    if (participantId) {
+      playerToken.parse(participantId);
+      records = records.filter(record => record.players?.some(player => player.id === participantId || Boolean(examples) && player.name === participantName));
+    }
     if (cursor) {
       const match = /^(\d+):([A-Z0-9-]+)$/.exec(cursor);
       if (!match) throw new TableError('Invalid history page');
