@@ -72,3 +72,50 @@ test('short-call fixture is capped and the next raise cancels the queued intent'
     assert.equal(waitingCall(after),call);assert.equal(preactionValid(queued,after),false);
   }
 });
+
+test('local simulation runs bots on launch and preserves paused checkpoints',async t=>{
+  const {installLocalLab}=await import('../lib/test-lab/local-bridge.ts');
+  t.mock.timers.enable({apis:['setInterval','Date'],now:origin});
+  const originUrl='https://test.invalid';
+  let listener, state;
+  const browser={
+    parent:{postMessage(message){state=message;}},
+    addEventListener(type,callback){listener=callback;},
+    removeEventListener(){}
+  };
+  const config={scenario:'simulation',players:4,viewer:0,seed:'42'};
+  globalThis.window=browser;
+  globalThis.location={origin:originUrl};
+  t.after(()=>{delete globalThis.window;delete globalThis.location;});
+  function open(cfg,checkpoint){
+    const query=new URLSearchParams({config:JSON.stringify(cfg)});
+    if(checkpoint!==undefined)query.set('checkpoint',String(checkpoint));
+    globalThis.location.search='?'+query;
+    const options={demo:{},token:{},runtime:{},identity(){},time(){},update(){},playing(){}};
+    const cleanup=installLocalLab(options);
+    return {room:options.demo.current,cleanup};
+  }
+  const simulation=open(config);
+  try{
+    assert.equal(state.running,true);
+    assert.notEqual(simulation.room.turn,labPlayerId(config.viewer));
+    for(let i=0;i<10;i++)t.mock.timers.tick(100);
+    assert.equal(simulation.room.actionSeq,1);
+    assert.equal(simulation.room.turn,labPlayerId(config.viewer));
+    listener({origin:originUrl,source:browser.parent,data:{type:'lab-play',running:false}});
+    const pausedAt=state.now;
+    t.mock.timers.tick(5000);
+    assert.equal(state.running,false);
+    assert.equal(state.now,pausedAt);
+  }finally{simulation.cleanup();}
+
+  for(const [cfg,checkpoint] of [[config,0],[{...config,scenario:'betting'},undefined]]){
+    const fixture=open(cfg,checkpoint);
+    try{
+      const pausedAt=state.now;
+      t.mock.timers.tick(5000);
+      assert.equal(state.running,false);
+      assert.equal(state.now,pausedAt);
+    }finally{fixture.cleanup();}
+  }
+});

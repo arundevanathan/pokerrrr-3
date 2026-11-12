@@ -19,7 +19,13 @@ export function TestLab(){
     if(q.get('backend')==='server')setBackend('server');
     if(presets.some(d=>d.id===q.get('device')))setDevice(q.get('device')!);
     if(q.has('checkpoint')&&Number.isInteger(Number(q.get('checkpoint'))))requestedPoint.current=Number(q.get('checkpoint'));
-    try {if(q.get('config')){const cfg=normalizeConfig(JSON.parse(q.get('config')!));setConfig(cfg);setMode(cfg.scenario==='simulation'?'simulate':'choose');}
+    try {
+      if(q.get('config')){
+        const cfg=normalizeConfig(JSON.parse(q.get('config')!));
+        setConfig(cfg);
+        setMode(cfg.scenario==='simulation'?'simulate':'choose');
+        if(cfg.scenario==='simulation'&&q.get('start')==='1')void launch(cfg,q.get('backend')==='server'?'server':'local');
+      }
       const saved=JSON.parse(localStorage.getItem('dunzo-test-lab-reviews')||'{}');setReviews(saved);
     }catch{}
     fetch('/build-info.json',{cache:'no-store'}).then(r=>r.json()).then(setBuild).catch(()=>{});

@@ -11,9 +11,13 @@ export function installLocalLab(options: any) {
   const apply=(room:any)=>{room.labReplayKey=replayKey;options.demo.current=room;options.token.current=labPlayerId(bundle.config.viewer);room.labNow=now;
     options.identity({id:options.token.current,name:room.players[bundle.config.viewer].name});options.time(now);
     options.update(view(room,options.token.current,now));post();};
-  const point=(next:number)=>{if(next<=index)replayKey++;index=Math.max(0,Math.min(next,bundle.checkpoints.length-1));const p=bundle.checkpoints[index];now=p.now;apply(structuredClone(p.room));};
-  const load=(input:any)=>{bundle=buildScenario(input);running=false;replay=false;
-    point(bundle.config.scenario==='deal'?0:bundle.checkpoints.length-1);};
+  const point=(next:number)=>{if(next<=index)replayKey++;index=Math.max(0,Math.min(next,bundle.checkpoints.length-1));const p=bundle.checkpoints[index];now=p.now;lastBot=now;apply(structuredClone(p.room));};
+  const load=(input:any, checkpoint?:number)=>{
+    bundle=buildScenario(input);
+    running=bundle.config.scenario==='simulation'&&checkpoint===undefined;
+    replay=false;
+    point(checkpoint??(bundle.config.scenario==='deal'?0:bundle.checkpoints.length-1));
+  };
   const message=(event:MessageEvent)=>{
     if(event.origin!==origin||event.source!==window.parent||!event.data?.type?.startsWith('lab-'))return;
     try {
@@ -34,7 +38,7 @@ export function installLocalLab(options: any) {
   };
   window.addEventListener('message',message);
   const query=new URLSearchParams(location.search);
-  try{load(JSON.parse(query.get('config')||'{}'));if(query.has('checkpoint'))point(Number(query.get('checkpoint')));}catch(error:any){post({error:error.message});}
+  try{load(JSON.parse(query.get('config')||'{}'),query.has('checkpoint')?Number(query.get('checkpoint')):undefined);}catch(error:any){post({error:error.message});}
   const timer=setInterval(()=>{
     if(!running||!bundle)return;
     try{

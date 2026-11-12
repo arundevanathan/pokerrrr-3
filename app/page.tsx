@@ -421,7 +421,11 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     }
   }
   async function openTable(settings: any) {
-    if (showTestTools && settings.simulate) { location.href = '/test-lab?config=' + encodeURIComponent(JSON.stringify({...settings, scenario: 'simulation', game: settings.games[0], players: settings.opponents+1})); return; }
+    if (showTestTools && settings.simulate) {
+      const config = {...settings, scenario: 'simulation', game: settings.games[0], players: settings.opponents + 1};
+      location.href = '/test-lab?' + new URLSearchParams({config: JSON.stringify(config), start: '1'});
+      return;
+    }
     if (!player) return;
     setBusy(true);
     setError('');
