@@ -56,8 +56,8 @@ async function fixture(count = 2) {
     type: 'create',
     name: 'Host',
     rotation: 2,
-    sb: 5,
-    bb: 10,
+    sb: 10,
+    bb: 20,
     buyin: 1000,
     seats: 8
   }));
@@ -106,6 +106,16 @@ test('wire protocol rejects unknown actions, extra fields and missing concurrenc
     type: 'create',
     name: 'Host',
     bb: 25
+  })));
+  for (const bb of [18, 302]) assert.throws(() => parseCommand(commandEnvelope({
+    type: 'create',
+    name: 'Host',
+    bb
+  })));
+  for (const bb of [20, 300]) assert.doesNotThrow(() => parseCommand(commandEnvelope({
+    type: 'create',
+    name: 'Host',
+    bb
   })));
   assert.throws(() => parseCommand(commandEnvelope({
     type: 'create',

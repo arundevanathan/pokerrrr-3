@@ -4491,6 +4491,24 @@ html:has(.app.in-game),body:has(.app.in-game) {
   font-size: 26px;
   margin: 0;
 }
+.history-intro {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 6px 0 0;
+  max-width: 460px;
+}
+.history-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.history-download-status {
+  color: var(--muted);
+  font-size: 12px;
+  margin: -8px 0 16px;
+}
 .history-toolbar > span,.post-hand-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .build-disclosure { color: var(--muted); font-size: 10px; margin-left: auto; white-space: nowrap; }
 
@@ -4563,9 +4581,15 @@ html:has(.app.in-game),body:has(.app.in-game) {
 @media(max-width:620px) {
   .history-toolbar {
     gap: 10px;
+    align-items: flex-start;
+    flex-direction: column;
   }
   .history-toolbar h2 {
     font-size: 23px;
+  }
+  .history-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
   .history-toolbar .primary {
     padding: 11px 14px;
@@ -5041,6 +5065,30 @@ html:has(.app.in-game),body:has(.app.in-game) {
   height:36px; min-height:36px;
 }
 .in-game .slider-shortcuts .raise-slider-control input[type=range] {width:100%; height:36px;}
+.in-game .slider-shortcuts .raise-slider-control {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.in-game .raise-slider-readout {
+  flex:0 0 78px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-width:0;
+  height:36px;
+  padding:3px 7px;
+  border:1px solid #d9bb8255;
+  border-radius:8px;
+  background:#d9bb8214;
+  color:var(--gold);
+  font-variant-numeric:tabular-nums;
+  line-height:1;
+  pointer-events:none;
+}
+.in-game .raise-slider-readout span {font-size:9px; color:var(--muted); white-space:nowrap;}
+.in-game .raise-slider-readout strong {font-size:16px; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.in-game .slider-shortcuts .raise-slider-control input[type=range] {flex:1 1 auto; min-width:0; width:auto;}
 .in-game .slider-shortcuts .quick-bets {
   display:flex; order:0; flex:2 1 0; min-width:0; width:auto;
   height:37px; margin:0; gap:4px; flex-wrap:nowrap; align-items:center;
@@ -5075,6 +5123,8 @@ html:has(.app.in-game),body:has(.app.in-game) {
  .in-game .personal-hand {flex-basis:101px; height:101px;}
  .in-game .personal-hole-cards .card.small {height:93px; width:clamp(49px,15.5vw,74px);}
  .in-game .slider-shortcuts {gap:8px;}
+ .in-game .raise-slider-readout {flex-basis:74px; padding-inline:6px;}
+ .in-game .raise-slider-readout strong {font-size:15px;}
  .in-game .action-buttons>button {height:54px; min-height:54px;}
 }
 @media(max-height:700px) {

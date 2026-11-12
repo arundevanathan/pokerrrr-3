@@ -39,6 +39,8 @@ export function GameHistory({
   const [viewerKey, setViewerKey] = useState<string | null>(null),
     [selected, setSelected] = useState<any>(null),
     [shareStatus, setShareStatus] = useState(''),
+    [downloadStatus, setDownloadStatus] = useState(''),
+    [downloading, setDownloading] = useState(''),
     [sharing, setSharing] = useState(false),
     [shareFile, setShareFile] = useState<File | null>(null);
   const [from, setFrom] = useState(() => currentSettlementWeek().from),
@@ -57,6 +59,7 @@ export function GameHistory({
     setError('');
     try {
       const query = new URLSearchParams({
+        mine: '1',
         ...(showTestTools && demo && {
           demo: '1'
         }),
@@ -144,30 +147,48 @@ export function GameHistory({
       setSharing(false);
     }
   }
-  async function exportHands(format: 'csv' | 'json') {
-    if (!selected?.code) return;
+  async function exportHands(format: 'csv' | 'json', code?: string) {
+    const selectedCode = code === undefined ? selected?.code : code;
+    if (code === undefined && !selectedCode) return;
     setShareStatus('');
+    setDownloadStatus('');
+    setDownloading(`${format}:${selectedCode || 'all'}`);
     try {
-      const response = await fetch(`/api/hand-history?${new URLSearchParams({ code: selected.code, format })}`, { cache: 'no-store' });
+      const response = await fetch(`/api/hand-history?${new URLSearchParams({
+        format,
+        ...(selectedCode && { code: selectedCode })
+      })}`, { cache: 'no-store' });
       if (!response.ok) {
         const body: any = await response.json().catch(() => ({}));
         throw new Error(body.error || 'Could not prepare hand history');
       }
       const blob = await response.blob(), url = URL.createObjectURL(blob), anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `dunzo-club-hand-history-${selected.code}.${format}`;
+      anchor.download = `dunzo-club-${selectedCode ? `hand-history-${selectedCode}` : 'my-hand-history'}.${format}`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      setShareStatus(e.message || 'Could not prepare hand history');
+      const message = e.message || 'Could not prepare hand history';
+      if (selectedCode) setShareStatus(message);else setDownloadStatus(message);
+    } finally {
+      setDownloading('');
     }
   }
   return <section className="game-history" aria-label="Previous games">
 
     <div className="history-toolbar">
-      <h2>Previous Games</h2>
-      <button className="primary" onClick={() => setOpen(true)}>Settle Up</button>
+      <div>
+        <h2>My Hand History</h2>
+        <p className="history-intro">Only games you played are shown. Downloads include only the cards you were allowed to see.</p>
+      </div>
+      <div className="history-actions">
+        <button className="secondary" disabled={Boolean(downloading)} onClick={() => void exportHands('csv', '')}>{downloading === 'csv:all' ? 'Preparing…' : 'All action logs CSV'}</button>
+        <button className="secondary" disabled={Boolean(downloading)} onClick={() => void exportHands('json', '')}>{downloading === 'json:all' ? 'Preparing…' : 'All hands JSON'}</button>
+        <button className="primary" onClick={() => setOpen(true)}>Settle Up</button>
+      </div>
     </div>
+
+    {downloadStatus && <p role="status" className="history-download-status">{downloadStatus}</p>}
 
     {showTestTools && demoAvailable && <label className="demo-history-toggle"><input type="checkbox" checked={demo} onChange={e => setDemo(e.target.checked)} />Show Simulated History</label>}
 
@@ -178,7 +199,7 @@ export function GameHistory({
       <button className="text-button" onClick={() => load()}>Retry</button>
     </div>}
 
-    {loading && !games.length ? <p role="status">Loading game history…</p> : !games.length && !error ? <p>No completed games.</p> : games.length > 0 && <>
+    {loading && !games.length ? <p role="status">Loading your hand history…</p> : !games.length && !error ? <p>You have no completed games yet.</p> : games.length > 0 && <>
       <div className="history-table-scroll">
         <table>
           <caption>Win / loss in chips · Dates in India time</caption>

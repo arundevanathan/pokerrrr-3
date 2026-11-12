@@ -133,6 +133,16 @@ test('history pagination and date-range settlement include all archives beyond a
     cursor: 'not-a-cursor'
   }), /Invalid history page/);
 });
+test('my-game history excludes sessions the signed-in player did not play', async () => {
+  const games = historyExamples(now),
+    service = new TableService(storage(games)),
+    player = games[0].players[5].id,
+    playerKey = await historyPlayerKey(player),
+    history = await service.history({ participantId: player });
+  assert.ok(history.games.length > 0);
+  assert.ok(history.games.every(game => game.players.some(p => p.key === playerKey)));
+  assert.ok(history.games.length < games.length);
+});
 test('public history removes private IDs and contains only closed-game accounting fields', async () => {
   const record = historyExamples(now)[0];
   record.deck = [1, 2, 3];

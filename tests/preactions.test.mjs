@@ -34,14 +34,14 @@ test('a raise racing the queued call is rejected by the server version guard wit
   const {MemoryStorage}=await import('./memory-storage.mjs');
   const {commandEnvelope}=await import('../lib/protocol/poker.mjs');
   const ids=Array.from({length:3},()=>crypto.randomUUID()),service=new TableService(new MemoryStorage());
-  let room=(await service.execute(ids[0],commandEnvelope({type:'create',name:'Host',sb:5,bb:10,seats:3,buyin:1000,games:['NLH']}))).snapshot;
+  let room=(await service.execute(ids[0],commandEnvelope({type:'create',name:'Host',sb:10,bb:20,seats:3,buyin:1000,games:['NLH']}))).snapshot;
   for(let i=1;i<3;i++)await service.execute(ids[i],commandEnvelope({type:'join',code:room.code,name:'Player '+i}));
   room=await service.snapshot(ids[0],room.code);
   room=(await service.execute(ids[0],commandEnvelope({type:'deal',code:room.code},room))).snapshot;
   const before=await service.snapshot(ids[1],room.code),queued=queuePreaction('call',before);
   const request=commandEnvelope({type:'call',code:room.code},before);
   assert.equal(preactionValid(queued,before),true);
-  await service.execute(ids[0],commandEnvelope({type:'raise',code:room.code,amount:30},room));
+  await service.execute(ids[0],commandEnvelope({type:'raise',code:room.code,amount:40},room));
   await assert.rejects(service.execute(ids[1],request),/table changed/i);
   const after=await service.snapshot(ids[1],room.code);
   assert.equal(after.players.find(p=>p.id===ids[1]).stack,before.players.find(p=>p.id===ids[1]).stack);
