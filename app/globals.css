@@ -5009,14 +5009,9 @@ html:has(.app.in-game),body:has(.app.in-game) {
   width:100%; height:37px; min-height:37px;
 }
 .in-game .slider-shortcuts .raise-slider-control {
-  display:block; order:0; flex:3 1 0; min-width:0; width:auto;
+  display:flex; flex-direction:row; align-items:center; gap:8px;
+  order:0; flex:3 1 0; min-width:0; width:auto;
   height:36px; min-height:36px;
-}
-.in-game .slider-shortcuts .raise-slider-control input[type=range] {width:100%; height:36px;}
-.in-game .slider-shortcuts .raise-slider-control {
-  display:flex;
-  align-items:center;
-  gap:8px;
 }
 .in-game .raise-slider-readout {
   flex:0 0 78px;
@@ -5036,7 +5031,9 @@ html:has(.app.in-game),body:has(.app.in-game) {
 }
 .in-game .raise-slider-readout span {font-size:9px; color:var(--muted); white-space:nowrap;}
 .in-game .raise-slider-readout strong {font-size:16px; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.in-game .slider-shortcuts .raise-slider-control input[type=range] {flex:1 1 auto; min-width:0; width:auto;}
+.in-game .slider-shortcuts .raise-slider-control input[type=range] {
+  flex:1 1 0; min-width:0; width:auto; height:36px;
+}
 .in-game .slider-shortcuts .quick-bets {
   display:flex; order:0; flex:2 1 0; min-width:0; width:auto;
   height:37px; margin:0; gap:4px; flex-wrap:nowrap; align-items:center;
