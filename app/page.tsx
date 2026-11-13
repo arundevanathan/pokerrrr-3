@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ArrowUpRight, Smartphone, Download, History, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { useAppViewport } from '../lib/client/use-app-viewport';
 import { PokerAudio } from '../lib/poker-audio';
 import { useTableEffects } from '../lib/use-table-effects';
@@ -15,24 +15,12 @@ import { useSocial } from '../lib/client/use-social';
 import { TableReactions } from './table-reactions';
 import { useReactions } from '../lib/client/use-reactions';
 import { reactionsEnabled } from '../lib/reactions.mjs';
-import { newRoom, command, startHand, act, legal, view, resolveAlias, tick, shortcutRaiseTo } from '../lib/client/practice.mjs';
 import { PokerClient, type Connection } from '../lib/client/poker-client';
 import { GameHistory } from './game-history';
 import { PlayerLobby, PinSettings } from './player-lobby';
-import { installLocalLab } from '../lib/test-lab/local-bridge';
-import { publicHandRecord, viewerHandRecord, handHistoryCsv, handHistoryJson } from '../lib/hand-history.mjs';
-import { showTestTools } from '../lib/client/environment';
 import { nextRaise, bettingOpportunity } from '../lib/client/raise-selection.mjs';
 import { preactionValid, resolvePreaction, queuePreaction, waitingCall as queuedCallAmount } from '../lib/client/preaction.mjs';
 type Room = any;
-// Temporary identities for local practice; multiplayer identity comes from the server.
-function playerId() {
-  const b = crypto.getRandomValues(new Uint8Array(16));
-  b[6] = b[6] & 15 | 64;
-  b[8] = b[8] & 63 | 128;
-  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
-}
 const fmt = (n: number) => new Intl.NumberFormat('en-IN').format(n || 0);
 const gameName: Record<string, string> = {
   NLH: 'Texas Hold’em',
@@ -69,16 +57,8 @@ function Card({
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
 const enableReactions = reactionsEnabled(process.env.NEXT_PUBLIC_APP_ENV);
-export default function Home({lab = false}: {lab?: boolean} = {}) {
-  const [labTime, setLabTime] = useState(Date.now());
-  const [labPlaying,setLabPlaying] = useState(false);
-  const labRuntime = useRef<any>(null);
+export default function Home() {
   const [room, setRoom] = useState<Room>(null),
-    [name, setName] = useState(''),
-    [rotation] = useState(3),
-    [sb] = useState(25),
-    [bb] = useState(50),
-    [buyin] = useState(2500),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
@@ -101,9 +81,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
   if (!audio.current) audio.current = new PokerAudio();
   const socialAudio = useRef<PokerAudio | null>(null);
   if (!socialAudio.current) socialAudio.current = new PokerAudio();
-  const effects = useTableEffects(room, audio.current, lab ? labTime : undefined),
-    animationBusy = useRef(false);
-  animationBusy.current = effects.presentationBusy;
+  const effects = useTableEffects(room, audio.current);
   const [player, setPlayer] = useState<{
     id: string;
     name: string;
@@ -118,23 +96,21 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
   const autoResume = useRef(true);
   const [connection, setConnection] = useState<Connection>('connecting');
   const transport = useRef<PokerClient | null>(null);
-  const token = useRef(''),
-    demo = useRef<Room>(null),
-    current = useRef<Room>(null),
+  const current = useRef<Room>(null),
     pending = useRef(false),
     offset = useRef(0);
-  const social = useSocial(room, Boolean(demo.current), connection, enableReactions);
-  const reactions = useReactions(current, demo, enableReactions);
+  const social = useSocial(room, connection, enableReactions);
+  const reactions = useReactions(current, enableReactions);
   // HTTP replies and socket pushes can race. Never replace a newer snapshot.
   function update(r: Room) {
-    if (!lab && current.current?.code === r.code && current.current.version > r.version) return;
+    if (current.current?.code === r.code && current.current.version > r.version) return;
     const selection = nextRaise(current.current, r, raiseRef.current);
-    if (current.current?.handStartedAt !== r.handStartedAt || current.current?.code !== r.code || current.current?.labReplayKey !== r.labReplayKey) {
+    if (current.current?.handStartedAt !== r.handStartedAt || current.current?.code !== r.code) {
       setSelectedWinner('');
       setSelectedRun(0);
     }
     current.current = r;
-    offset.current = lab ? 0 : (r.serverTime || Date.now()) - Date.now();
+    offset.current = (r.serverTime || Date.now()) - Date.now();
     setRoom(r);
     if (r.legal) {
       setRaise(selection.amount);
@@ -142,15 +118,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     }
     if (selection.reset) setSelectedShortcut('');
   }
-  useEffect(() => {
-    if (!lab || !showTestTools) return;
-    return installLocalLab({playing:setLabPlaying, demo, token, runtime: labRuntime, update, identity: (p: any) => {setPlayer(p);setAuthLoading(false);setConnection('connected');}, time: (n: number) => {setLabTime(n);setClock(n);} });
-  }, [lab]);
-  useEffect(() => {
-    if(lab || !showTestTools || !location.pathname.startsWith('/test-lab/table') || !room)return;
-    window.parent.postMessage({type:'lab-state',backend:'server',connection,label:room.phase,expected:{phase:room.phase,variant:room.game,version:room.version,runCount:room.runCount,
-      winners:room.result?.map((p:any)=>({name:p.name,amount:p.wonAmount??p.amount})),chips:room.players.reduce((n:number,p:any)=>n+p.stack+p.cashout+(['showdown','closed'].includes(room.phase)?0:p.total),0),buyins:room.players.reduce((n:number,p:any)=>n+p.buyins,0)},transcript:room.handActionLog||[]},location.origin);
-  }, [room, connection]);
   const raiseRef = useRef(raise);
   raiseRef.current = raise;
   const identityRetry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -164,8 +131,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
       setPlayers(list.players);
       setPlayer(session.player);
       if (session.player) {
-        token.current = session.player.id;
-        setName(session.player.name);
         transport.current = new PokerClient(session.player.id);
         if (transport.current.hasPending()) setNotice('Restoring your connection…');
         setError('');
@@ -178,7 +143,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     }
   }
   function expired() {
-    demo.current = null;
     transport.current = null;
     setPlayer(null);
     current.current = null;
@@ -196,8 +160,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
       });
       autoResume.current = false;
       setPlayer(result.player);
-      token.current = result.player.id;
-      setName(result.player.name);
       transport.current = new PokerClient(result.player.id);
       setLobby(await PokerClient.auth('lobby'));
     } catch (e: any) {
@@ -210,7 +172,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     setBusy(true);
     try {
       await PokerClient.auth('logout', {});
-      demo.current = null;
       expired();
       setError('');
     } catch (e: any) {
@@ -244,18 +205,18 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     const unlockSocial = () => socialAudio.current?.unlock();
     document.addEventListener('pointerdown', unlockSocial);
     document.addEventListener('keydown', unlockSocial);
-    const enabled = !lab && localStorage.getItem('hg-sound') !== 'off';
+    const enabled = localStorage.getItem('hg-sound') !== 'off';
     setSound(enabled);
     audio.current?.setEnabled(enabled);
     socialAudio.current?.setEnabled(enabled);
-    if (!lab) { token.current = playerId(); void refreshIdentity(); }
-    if (!lab && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { });
+    void refreshIdentity();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { });
     const installer = (e: any) => {
       e.preventDefault();
       setInstall(e);
     };
     window.addEventListener('beforeinstallprompt', installer);
-    const timer = setInterval(() => {if (!lab) setClock(Date.now());}, 500);
+    const timer = setInterval(() => setClock(Date.now()), 500);
     return () => {
       clearInterval(timer);
       clearTimeout(identityRetry.current);
@@ -274,44 +235,15 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     return () => { active = false; };
   }, []);
   useEffect(() => {
-    if (lab || !player || !transport.current) return;
+    if (!player || !transport.current) return;
     return transport.current.connect(state => {
       setLobby(state.lobby);
       const r = state.room;
-      if (r && !demo.current && (current.current && current.current.code === r.code || !current.current && autoResume.current && state.lobby.activeGame?.joined && state.lobby.activeGame?.code === r.code)) update(r);
+      if (r && (current.current && current.current.code === r.code || !current.current && autoResume.current && state.lobby.activeGame?.joined && state.lobby.activeGame?.code === r.code)) update(r);
     }, setConnection, expired, (event, serverTime) => {
-      if (!demo.current) reactions.receive(event, serverTime);
-    }, entry => { if (!demo.current) social.receive(entry); }, message => { setError(''); setNotice(message); });
+      reactions.receive(event, serverTime);
+    }, entry => { social.receive(entry); }, message => { setError(''); setNotice(message); });
   }, [player?.id, authEpoch]);
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (lab) return;
-      const r = demo.current;
-      if (r?.phase === 'runout_vote') {
-        for (const voter of r.runVote.voters) {
-          if (voter.id !== token.current && voter.choice === null && Date.now() >= r.runVote.opensAt && Date.now() < r.runVote.deadline) command(r, voter.id, {
-            type: 'runout_vote',
-            choice: r.runVote.canTwice ? 2 : 1
-          });
-        }
-        update(view(r, token.current));
-        return;
-      }
-      if (!r || !r.turn || r.turn === token.current || pending.current || animationBusy.current) return;
-      const l = legal(r, r.turn);
-      if (!l) return;
-      try {
-        const roll = Math.random();
-        if (l.canRaise && roll < .16) act(r, r.turn, 'raise', Math.min(l.min, l.max));
-  else if (l.call && roll < .2) act(r, r.turn, 'fold');
-  else act(r, r.turn, l.call ? 'call' : 'check');
-        update(view(r, token.current));
-      } catch (e: any) {
-        setError(e.message);
-      }
-    }, 850);
-    return () => clearInterval(id);
-  }, []);
   useLayoutEffect(() => {
     if (!room) return;
     const html = document.documentElement,
@@ -325,18 +257,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
       body.style.overflow = oldBody;
     };
   }, [Boolean(room)]);
-  useEffect(() => {
-    const id = setInterval(() => {
-      const r = demo.current;
-      if (lab || !r || pending.current) return;
-      try {
-        if (tick(r)) update(view(r, token.current));
-      } catch (e: any) {
-        setError(e.message);
-      }
-    }, 200);
-    return () => clearInterval(id);
-  }, []);
   useEffect(() => {
     if (notice) {
       const t = setTimeout(() => setNotice(''), 3500);
@@ -359,7 +279,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
   // Block duplicate taps and wait for a fresh connection before submitting actions.
   async function send(type: string, extra: any = {}) {
     if (pending.current) return false;
-    if (!demo.current && connection !== 'connected') {
+    if (connection !== 'connected') {
       setError('Reconnecting to the table. Wait for a fresh view.');
       return false;
     }
@@ -369,24 +289,13 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     setBusy(true);
     setError('');
     try {
-      if (demo.current) {
-        if (lab && type==='deal') startHand(demo.current, labRuntime.current.now, labRuntime.current.newDeck(demo.current));
-        else command(demo.current, token.current, {
-          type,
-          ...extra,
-          player: extra.player ? resolveAlias(demo.current, extra.player) : undefined
-        }, lab ? labRuntime.current.now : Date.now());
-        update(view(demo.current, token.current, lab ? labRuntime.current.now : Date.now()));
-        if(lab) {labRuntime.current?.record(type,extra);labRuntime.current?.report();}
-      } else {
-        const r = await api({
-          type,
-          code: current.current?.code,
-          version: current.current?.version,
-          ...extra
-        });
-        update(r);
-      }
+      const r = await api({
+        type,
+        code: current.current?.code,
+        version: current.current?.version,
+        ...extra
+      });
+      update(r);
       return true;
     } catch (e: any) {
       setError(e.message);
@@ -401,11 +310,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     if (!code) return;
     setError('');
     try {
-      if (demo.current) {
-        const records = demo.current.history.map((h: any) => viewerHandRecord(publicHandRecord(code, h), h.privateCards?.find((p: any) => p.id === token.current)));
-        const url = URL.createObjectURL(new Blob([format === 'csv' ? handHistoryCsv(records) : handHistoryJson(records)], {type: format === 'csv' ? 'text/csv' : 'application/json'}));
-        const a = document.createElement('a'); a.href=url;a.download=`simulation-${code}.${format}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
-      }
       const response = await fetch(`/api/hand-history?${new URLSearchParams({ code, format })}`, { cache: 'no-store' });
       if (!response.ok) {
         const body: any = await response.json().catch(() => ({}));
@@ -421,11 +325,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     }
   }
   async function openTable(settings: any) {
-    if (showTestTools && settings.simulate) {
-      const config = {...settings, scenario: 'simulation', game: settings.games[0], players: settings.opponents + 1};
-      location.href = '/test-lab?' + new URLSearchParams({config: JSON.stringify(config), start: '1'});
-      return;
-    }
     if (!player) return;
     setBusy(true);
     setError('');
@@ -471,7 +370,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     }
   }
   async function exit() {
-    if (showTestTools && location.pathname.startsWith('/test-lab/table')) {if(lab)labRuntime.current?.exit();else window.parent.postMessage({type:'lab-exit'},location.origin);return;}
     const r = current.current;
     const leaving = r?.players.find((p: any) => p.id === r.me && !p.left);
     if (enableReactions && leaving && !leaving.away && !leaving.pendingSeatAction && r.phase !== 'closed') {
@@ -479,7 +377,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
     }
     social.setOpen(false);
     social.setHistoryOpen(false);
-    demo.current = null;
     current.current = null;
     setRoom(null);
     setPanel('');
@@ -492,7 +389,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
       setInstall(null);
     } else setPanel('install');
   }
-  const controlsBusy = busy || !demo.current && connection !== 'connected';
+  const controlsBusy = busy || connection !== 'connected';
   const me = room?.players.find((p: any) => p.id === room.me),
     live = room && ['preflop', 'flop', 'turn', 'river'].includes(room.phase),
     myTurn = room?.turn === room?.me,
@@ -506,7 +403,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
   }
   useEffect(() => {
     const queued = queuedAction.current;
-    if (queued && (!preactionValid(queued, room) || !demo.current && connection !== 'connected')) {
+    if (queued && (!preactionValid(queued, room) || connection !== 'connected')) {
       queuedAction.current = null;
       setPreaction(null);
       return;
@@ -526,7 +423,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
   const voting = room?.phase === 'runout_vote',
     handActive = live || voting;
   useEffect(() => {
-    if (lab || !voting) return;
+    if (!voting) return;
     const id = setInterval(() => setClock(Date.now()), 100);
     return () => clearInterval(id);
   }, [voting]);
@@ -578,10 +475,10 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
   const canQueueAction = Boolean(live && !myTurn && me?.inHand && !me.folded && !me.away && me.stack > 0);
   const clampRaise = (v: number) => Math.min(raiseMax, Math.max(raiseMin, Math.round(v || raiseMin)));
   const buildDisclosure = buildInfo?.builtAt ? `Updated ${new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(buildInfo.builtAt))} · ${buildInfo.revision}${buildInfo.dirty ? ' + local changes' : ''}` : 'Build information unavailable';
-  return <div ref={appViewport} className={`app ${lab && !labPlaying ? 'lab-clock-paused' : ''} ${room ? 'in-game' : ''} ${social.open ? 'composing-chat' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
+  return <div ref={appViewport} className={`app ${room ? 'in-game' : ''} ${social.open ? 'composing-chat' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
 
     <header className="topbar">
-      <button className="brand" onClick={() => {if(showTestTools && location.pathname.startsWith('/test-lab/table'))window.parent.postMessage({type:'lab-controls'},location.origin);else if(room)void exit();}} aria-label="Dunzo Club">
+      <button className="brand" onClick={room ? exit : undefined} aria-label="Dunzo Club">
         <span className="brand-icon">♠</span>
         <span>Dunzo Club<span className="brand-dot">.</span>{isStaging && <small className="staging-badge">STAGING</small>}</span>
       </button>
@@ -598,7 +495,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
         {room ? <>
           <span className="connection">
             <i />
-            {demo.current ? (lab ? 'Test simulation' : 'Simulation') : connection === 'connected' ? 'Live table' : connection === 'offline' ? 'Offline' : 'Reconnecting…'}
+            {connection === 'connected' ? 'Live table' : connection === 'offline' ? 'Offline' : 'Reconnecting…'}
           </span>
           <button className="icon-button" onClick={() => setPanel('menu')} aria-label="Table menu">
             <MoreHorizontal size={22} />
@@ -614,7 +511,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
 
     {!room ? <main className="lobby simple-lobby">
 
-      <PlayerLobby player={player} players={players} activeGame={lobby.activeGame} loading={authLoading} busy={busy} error={error} onLogin={login} onOpen={openTable} onPractice={showTestTools ? () => {location.href='/test-lab';} : undefined} onRetry={retryLastAction} hasPending={transport.current?.hasPending() || false} />
+      <PlayerLobby player={player} players={players} activeGame={lobby.activeGame} loading={authLoading} busy={busy} error={error} onLogin={login} onOpen={openTable} onRetry={retryLastAction} hasPending={transport.current?.hasPending() || false} />
 
       {player && <GameHistory key={player.id} refreshKey={lobby.activeGame?.code || ''} />}
 
@@ -668,9 +565,8 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
                           const shown = effects.boardVisible(i, runIndex),
                             value = shown ? board[i] : undefined,
                             winningBoard = effects.resultReady && runIndex + 1 === focusedRunNumber ? focusedHand?.boardCards || [] : [],
-                            timeline = runIndex === 1 ? effects.board2 : effects.board,
-                            animationEvent=timeline?.events.find((e:any)=>e.index===i);
-                          return <div style={lab && animationEvent ? {animationPlayState:'paused',animationDelay:`${timeline.startedAt + animationEvent.at - labTime}ms`} : undefined} key={`${room.handStartedAt || 0}:${runIndex}:${i}:${shown}`} className={value !== undefined && timeline?.events.some((e: any) => e.index === i) ? 'board-card-wrap board-dealt' : 'board-card-wrap'}>
+                            timeline = runIndex === 1 ? effects.board2 : effects.board;
+                          return <div key={`${room.handStartedAt || 0}:${runIndex}:${i}:${shown}`} className={value !== undefined && timeline?.events.some((e: any) => e.index === i) ? 'board-card-wrap board-dealt' : 'board-card-wrap'}>
                             <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />
                           </div>;
                         })}
@@ -756,7 +652,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
                     {p.seat === room.dealer && <b className="dealer-chip">D</b>}
                     {handActive && p.bet > 0 && p.action !== 'Check' && <div className="seat-bet">● {fmt(p.bet)}</div>}
                   </div>
-                  {p.disconnected && !demo.current ? <span className="seat-state disconnected" role="status">Disconnected</span> : p.away && <span className="seat-state">Sit out</span>}
+                  {p.disconnected ? <span className="seat-state disconnected" role="status">Disconnected</span> : p.away && <span className="seat-state">Sit out</span>}
                   {p.inHand && !p.away && !p.disconnected && p.action === 'Check' && !effects.dealing && room.phase !== 'closed' && <span className="player-action">Check</span>}
                 </> : <button className="seat-choice" aria-label={`Choose seat ${s + 1}`} disabled={controlsBusy || seated || room.phase === 'closed' || room.terminationPending} onClick={() => chooseSeat(s)}>
                   <span className="empty-seat">
@@ -767,12 +663,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
             })}
 
             <TableMotion room={room} mySeat={me?.seat || 0} effects={effects} />
-            {enableReactions && <TableReactions room={room} mySeat={me?.seat || 0} reactions={{ ...reactions, send: async reaction => {
-              const target = room.players.find((p: any) => !p.left && p.seat === reactions.target);
-              const sent = await reactions.send(reaction);
-              if (sent && demo.current && target) social.practiceEntry({ kind: 'reaction', reaction, to: { name: target.name, seat: target.seat } });
-              return sent;
-            } }} audio={socialAudio.current} />}
+            {enableReactions && <TableReactions room={room} mySeat={me?.seat || 0} reactions={reactions} audio={socialAudio.current} />}
 
             {enableReactions && <SpeechBubbles room={room} social={social} />}
             <RunoutVote room={room} now={clock + offset.current} busy={busy} send={send} />
@@ -836,7 +727,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
                     </div>
                     <div className="quick-bets" aria-label="Raise shortcuts">
                       {([['½', .5], ['Pot', 1]] as const).map(([label, n]) => <button className="bet-shortcut" key={label} title={label === '½' ? 'Half pot' : 'Pot'} disabled={!myTurn || controlsBusy || !l?.canRaise || effects.presentationBusy} aria-pressed={selectedShortcut === label} onClick={() => {
-                        setSelectedShortcut(label); setRaise(shortcutRaiseTo(current.current, token.current, n));
+                        setSelectedShortcut(label); setRaise(clampRaise(Math.floor(l.pot * n)));
                       }}>{label}</button>)}
                       <button className="bet-shortcut" title="All-in" disabled={!myTurn || controlsBusy || !l?.canRaise || effects.presentationBusy} aria-pressed={selectedShortcut === 'All'} onClick={() => { setSelectedShortcut('All'); setRaise(l.max); }}>All</button>
                     </div>
@@ -969,7 +860,7 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
             if (await send('join', {
               seat: selectedSeat,
               buyin: rebuy,
-              name: player?.name || name || 'You'
+              name: player?.name || 'You'
             })) {
               setSelectedSeat(null);
               setPanel('');
@@ -998,7 +889,6 @@ export default function Home({lab = false}: {lab?: boolean} = {}) {
             }}>{me.pendingSeatAction === 'leave' ? 'Cancel Stand Up' : 'Stand Up'}</button>}
             <button onClick={() => setPanel('history')}>Hand History</button>
             <button onClick={() => setPanel('info')}>Game Info</button>
-
             {room.phase !== 'closed' && <button className="danger" disabled={controlsBusy || room.terminationPending} onClick={() => { setConfirm('end'); setPanel('confirm'); }}>
               {room.terminationPending ? 'Termination Pending' : 'Terminate Game'}
             </button>}

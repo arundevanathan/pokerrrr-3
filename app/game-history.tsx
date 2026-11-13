@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { reactionsEnabled } from '../lib/reactions.mjs';
 import { useSocial } from '../lib/client/use-social';
 import { ChatDrawer } from './table-chat';
-import { showTestTools } from '../lib/client/environment';
 import { currentSettlementWeek, settlementDate, settlementText } from '../lib/game-history.mjs';
 const fmt = (n: number) => new Intl.NumberFormat('en-IN', {
   signDisplay: 'exceptZero'
@@ -33,9 +32,7 @@ export function GameHistory({
     [cursor, setCursor] = useState<string | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState('');
-  const [demo, setDemo] = useState(false),
-    [demoAvailable, setDemoAvailable] = useState(false),
-    [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [viewerKey, setViewerKey] = useState<string | null>(null),
     [selected, setSelected] = useState<any>(null),
     [shareStatus, setShareStatus] = useState(''),
@@ -48,7 +45,7 @@ export function GameHistory({
     [result, setResult] = useState<any>(null),
     [calculating, setCalculating] = useState(false),
     [settleError, setSettleError] = useState('');
-  const archiveSocial = useSocial(selected ? { ...selected, phase: 'closed', me: viewerKey, players: [] } : null, false, 'connected', reactionsEnabled(process.env.NEXT_PUBLIC_APP_ENV));
+  const archiveSocial = useSocial(selected ? { ...selected, phase: 'closed', me: viewerKey, players: [] } : null, 'connected', reactionsEnabled(process.env.NEXT_PUBLIC_APP_ENV));
   const historyRequest = useRef<AbortController | null>(null),
     settlementRequest = useRef<AbortController | null>(null);
   async function load(next?: string) {
@@ -60,9 +57,6 @@ export function GameHistory({
     try {
       const query = new URLSearchParams({
         mine: '1',
-        ...(showTestTools && demo && {
-          demo: '1'
-        }),
         ...(next && {
           cursor: next
         })
@@ -71,7 +65,6 @@ export function GameHistory({
       if (controller.signal.aborted) return;
       setGames(old => next ? [...old, ...data.games] : data.games);
       setCursor(data.nextCursor);
-      setDemoAvailable(showTestTools && data.demoAvailable);
       setViewerKey(data.viewerKey);
     } catch (e: any) {
       if (!controller.signal.aborted) setError(e.message);
@@ -96,7 +89,7 @@ export function GameHistory({
       historyRequest.current?.abort();
       settlementRequest.current?.abort();
     };
-  }, [demo, refreshKey]);
+  }, [refreshKey]);
   async function settle(event: React.FormEvent) {
     event.preventDefault();
     clearSettlement();
@@ -106,10 +99,7 @@ export function GameHistory({
     try {
       const query = new URLSearchParams({
         from,
-        to,
-        ...(showTestTools && demo && {
-          demo: '1'
-        })
+        to
       }),
         data = await read(`/api/settlement?${query}`, controller.signal);
       if (!controller.signal.aborted) setResult(data);
@@ -190,9 +180,7 @@ export function GameHistory({
 
     {downloadStatus && <p role="status" className="history-download-status">{downloadStatus}</p>}
 
-    {showTestTools && demoAvailable && <label className="demo-history-toggle"><input type="checkbox" checked={demo} onChange={e => setDemo(e.target.checked)} />Show Simulated History</label>}
 
-    {demo && <p className="demo-notice" role="status">Simulated data only. Real games are excluded from this view and its settlement.</p>}
 
     {error && <div className="error" role="alert">
       {error}
@@ -234,8 +222,8 @@ export function GameHistory({
     {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}>
       <section className="modal" role="dialog" aria-modal="true" aria-labelledby="game-results-heading" onClick={e => e.stopPropagation()}>
         <button className="modal-close icon-button" aria-label="Close game results" onClick={() => setSelected(null)}>×</button>
-        {reactionsEnabled(process.env.NEXT_PUBLIC_APP_ENV) && !demo && <button className="secondary" onClick={() => archiveSocial.setOpen(true)}>View Game Chat</button>}
-        <h2 id="game-results-heading">Game Results{demo ? ' · Simulated' : ''}</h2>
+        {reactionsEnabled(process.env.NEXT_PUBLIC_APP_ENV) && <button className="secondary" onClick={() => archiveSocial.setOpen(true)}>View Game Chat</button>}
+        <h2 id="game-results-heading">Game Results</h2>
         <p>
           {date(selected.closedAt)}
         </p>
@@ -272,7 +260,7 @@ export function GameHistory({
           clearSettlement();
           setOpen(false);
         }}>×</button>
-        <h2 id="settle-heading">Settle Up{demo ? ' · Simulated' : ''}</h2>
+        <h2 id="settle-heading">Settle Up</h2>
         <form onSubmit={settle}>
           <div className="field-row">
             <label>From<input type="date" value={from} max={to} required onChange={e => {

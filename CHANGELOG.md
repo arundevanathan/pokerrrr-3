@@ -1,5 +1,10 @@
 # Changelog
 
+## Staging — Live multiplayer testing, 13 November 2026
+
+- Remove Test Lab, simulated opponents, practice previews and simulated history.
+- Keep the shared staging lobby for testing new multiplayer features.
+
 ## Staging — Test UI lab, 28 October 2026
 
 - Add guided Quick/Full/Custom review, direct scenario selection and seeded simulation.
@@ -11,7 +16,7 @@
 - Add isolated real-Worker test sessions, synthetic identities, scoped cookies and
   HTTP/socket/lost-reply/offline-reload fault controls; ordinary staging data is separate.
 - Gate all test pages and endpoints out of production; add scenario-matrix and
-  real-Worker isolation/restart checks to CI. See [Test Lab](docs/TEST_LAB.md).
+  real-Worker isolation/restart checks to CI.
 
 ## Staging — Phase 1 integration, 28 October 2026
 

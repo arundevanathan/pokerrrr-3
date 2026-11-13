@@ -130,19 +130,3 @@ test('deploy guard requires the intended coordinator and rejects other persisten
     });
   }
 });
-
-// Production must override NODE_ENV, including during a developer's preview.
-test('test controls are opt-in and fail closed for production and unknown builds', async () => {
-  const { testToolsEnabled } = await import('../lib/app-environment.mjs');
-  for (const mode of ['production', 'development', undefined]) {
-    for (const environment of ['production', 'prod', 'preview', 'invalid']) {
-      assert.equal(testToolsEnabled(environment, mode), false);
-    }
-    for (const environment of ['staging', 'local']) {
-      assert.equal(testToolsEnabled(environment, mode), true);
-    }
-  }
-  assert.equal(testToolsEnabled(undefined, 'development'), true);
-  assert.equal(testToolsEnabled(undefined, 'production'), false);
-  assert.equal(testToolsEnabled(undefined, undefined), false);
-});

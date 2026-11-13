@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { currentSettlementWeek, settlementDate, settlementText, historyViewerKey, historyPlayerKey, historyRange, indiaDate, aggregateGames, suggestedPayments, householdPair, publicHistory } from '../lib/game-history.mjs';
+import { currentSettlementWeek, settlementDate, settlementText, historyPlayerKey, historyRange, indiaDate, aggregateGames, suggestedPayments, householdPair, publicHistory } from '../lib/game-history.mjs';
 import { historyExamples } from './history-fixtures.mjs';
 import { TableService } from '../server/table-service.mjs';
 const now = Date.parse('2026-10-25T12:00:00Z');
@@ -153,63 +153,17 @@ test('public history removes private IDs and contains only closed-game accountin
   for (const p of record.players) assert.ok(!JSON.stringify(publicGame).includes(p.id));
   assert.ok(publicGame.players.every(p => p.key.length === 64));
 });
-test('simulated history is isolated from real archives for history and settlement', async () => {
-  const examples = historyExamples(now),
-    service = new TableService(storage([examples[0]]));
-  assert.equal((await service.history()).games.length, 1);
-  assert.equal((await service.history({
-    examples: []
-  })).games.length, 0);
-  assert.equal((await service.history({
-    examples
-  })).games.length, 8);
-  const result = await service.settlement({
-    from: '2026-01-01',
-    to: '2026-12-31',
-    examples
-  });
-  assert.equal(result.gameCount, 8);
-});
-test('seed helper inserts all eight examples and cleanup preserves unrelated rows', async () => {
-  const {
-    mkdtempSync,
-    mkdirSync,
-    rmSync
-  } = await import('node:fs'),
-    {
-      join
-    } = await import('node:path'),
-    {
-      execFileSync
-    } = await import('node:child_process'),
-    {
-      DatabaseSync
-    } = await import('node:sqlite');
-  const root = mkdtempSync('/tmp/dunzo-history-seed-'),
-    dir = join(root, 'v3/do/TestClubTable');
-  mkdirSync(dir, {
-    recursive: true
-  });
-  const path = join(dir, `${'a'.repeat(64)}.sqlite`);
-  try {
-    let db = new DatabaseSync(path);
-    db.exec("CREATE TABLE history_examples(id TEXT PRIMARY KEY,record TEXT NOT NULL); INSERT INTO history_examples VALUES('unrelated','{}')");
-    db.close();
-    execFileSync(process.execPath, ['scripts/create-history-examples.mjs', '--database', path]);
-    db = new DatabaseSync(path);
-    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM history_examples WHERE id LIKE 'demo-%'").get().n, 8);
-    db.close();
-    execFileSync(process.execPath, ['scripts/create-history-examples.mjs', '--clear', '--database', path]);
-    db = new DatabaseSync(path);
-    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM history_examples').get().n, 1);
-    assert.equal(db.prepare('SELECT id FROM history_examples').get().id, 'unrelated');
-    db.close();
-  } finally {
-    rmSync(root, {
-      recursive: true,
-      force: true
-    });
-  }
+test('live history and settlement exclude legacy staging samples', async () => {
+  const [game] = historyExamples(now);
+  const live = {...game, code: 'LIVE22'};
+  const sample = {...game, code: 'STG001'};
+  const archive = storage([live]);
+  archive.values.set(`session:${sample.code}`, sample);
+  const service = new TableService(archive);
+  const history = await service.history({participantId: live.players[0].id});
+  assert.deepEqual(history.games.map(game => game.code), [live.code]);
+  const result = await service.settlement({from: '2026-01-01', to: '2026-12-31'});
+  assert.equal(result.gameCount, 1);
 });
 test('settlement week follows India Monday boundaries, including Sunday and year rollover', () => {
   assert.deepEqual(currentSettlementWeek(Date.parse('2026-10-25T18:29:59Z')), {
@@ -226,25 +180,6 @@ test('settlement week follows India Monday boundaries, including Sunday and year
   });
   assert.match(settlementDate('2026-10-19'), /Mon/);
 });
-test('viewer keys use authenticated identity and map only isolated examples by name', async () => {
-  const player = {
-    id: 'real-dunzo',
-    name: 'Dunzo'
-  },
-    examples = historyExamples(now);
-  assert.equal(await historyViewerKey(player), await historyPlayerKey(player.id));
-  assert.equal(await historyViewerKey(player, examples), await historyPlayerKey(examples[0].players[0].id));
-  assert.equal(await historyViewerKey({
-    ...player,
-    name: 'Unknown'
-  }, examples), null);
-  assert.equal(await historyViewerKey(player, [...examples, {
-    players: [{
-      id: 'duplicate',
-      name: 'Dunzo'
-    }]
-  }]), null);
-});
 test('share text includes date weekdays, totals before suggestions and simulated label', async () => {
   const result = await new TableService(storage(historyExamples(now))).settlement({
     from: '2026-10-19',
@@ -258,52 +193,4 @@ test('share text includes date weekdays, totals before suggestions and simulated
   assert.match(text, /Mon.*Sun/);
   assert.ok(text.indexOf('Player Win / Loss') < text.indexOf('Suggested Payments'));
   assert.doesNotMatch(text, /Suggestions only|Nothing is marked paid/);
-});
-
-test('staging reset replaces all closed history once, preserving active play and other storage', async () => {
-  const {resetStagingHistory, stagingHistoryGames} = await import('../lib/staging-history.mjs');
-  const roster = ['Dunzo', 'Ishita', 'Varun', 'Doshi', 'Panda', 'Saboo', 'Roongta'].map((name, i) => ({id: `current-${i}`, name}));
-  let values = new Map([
-    ['session:OLD', {code: 'OLD'}], ['room:OLD', {phase: 'closed'}],
-    ['hand:OLD:0001', {}], ['command:old', {code: 'OLD'}],
-    ['active', 'LIVE'], ['room:LIVE', {phase: 'playing'}],
-    ['hand:LIVE:0001', {private: true}], ['command:live', {code: 'LIVE'}], ['other-setting', 7]
-  ]);
-  // More than one storage page, including closed rooms that lost their session row.
-  for (let i = 0; i < 150; i++) values.set(`room:CLOSED${i}`, {phase: 'closed'});
-  const store = {async transaction(work) {
-    const draft = structuredClone(values);
-    const result = await work({
-      async get(key) {return draft.get(key)}, async put(key, value) {draft.set(key, value)}, async delete(key) {draft.delete(key)},
-      async list({limit, startAfter}) {return new Map([...draft].sort(([a], [b]) => a.localeCompare(b)).filter(([k]) => !startAfter || k > startAfter).slice(0, limit))}
-    });
-    values = draft;
-    return result;
-  }};
-  const args = {environment: 'staging', requestId: 'reset-test', roster, now};
-  const before = structuredClone(values);
-  await assert.rejects(resetStagingHistory(store, {...args, environment: 'production'}), /staging-only/);
-  await assert.rejects(resetStagingHistory(store, {...args, roster: roster.slice(1)}), /Expected one staging account/);
-  assert.deepEqual(values, before);
-  const result = await resetStagingHistory(store, args);
-  assert.equal(result.removedGames, 151);
-  assert.equal(result.seededGames, 4);
-  assert.equal(values.has('room:OLD'), false);
-  assert.equal(values.has('hand:OLD:0001'), false);
-  assert.equal(values.has('command:old'), false);
-  for (const key of ['active', 'room:LIVE', 'hand:LIVE:0001', 'command:live', 'other-setting']) assert.deepEqual(values.get(key), before.get(key));
-  const games = [...values].filter(([k]) => k.startsWith('session:')).map(([, game]) => game);
-  assert.equal(games.length, 4);
-  for (const game of games) {
-    assert.equal(game.players.length, 7);
-    assert.equal(game.players.reduce((sum, p) => sum + p.net, 0), 0);
-    assert.ok(game.players.every(p => roster.some(account => account.id === p.id)));
-    assert.ok(game.closedAt >= historyRange('2026-10-19', '2026-10-25').start && game.closedAt <= now);
-  }
-  const totals = aggregateGames(games), payments = suggestedPayments(totals, householdPair(totals, roster));
-  for (const p of totals) assert.equal(payments.reduce((sum, t) => sum + (t.to === p.id ? t.amount : 0) - (t.from === p.id ? t.amount : 0), 0), p.net);
-  values.set('session:NEW', {code: 'NEW'});
-  assert.deepEqual(await resetStagingHistory(store, {...args, now: now + 86400000}), result);
-  assert.ok(values.has('session:NEW'), 'a retry must not erase games played after the reset');
-  assert.equal(stagingHistoryGames(roster.map(p => p.name === 'Dunzo' ? {...p, name: 'Arun'} : p), now)[0].players[0].name, 'Dunzo');
 });

@@ -12,7 +12,7 @@ One URL serves both the React/PWA client and the authoritative Cloudflare server
 The Worker routes HTTP commands and WebSockets to one SQLite-backed `ClubTable`
 Durable Object. It serializes commands, saves state and command receipts before
 acknowledging, filters private player snapshots, and advances timers using alarms.
-The browser runs the engine only for explicitly local practice.
+Staging is a live multiplayer table for testing upcoming changes.
 
 Players select their name from a fixed roster and enter their own **4-digit PIN**.
 The server keeps a 30-day HttpOnly login session and a stable database player ID,
@@ -48,7 +48,7 @@ Open the printed local URL. Provision your static players using
 [the database instructions](docs/PLAYERS.md), select your name and sign in.
 Any logged-in player can start the sole game when none is active. Every other
 logged-in player sees it immediately and can join with their own starting stack.
-There is no access code or game code to share. Practice runs locally without login.
+There is no access code or game code to share.
 The automatic smoke runner provisions disposable local test accounts itself.
 
 No D1 migration is needed for this multiplayer implementation. The Durable Object
@@ -92,9 +92,8 @@ PWA installation, background/resume and recovery after network loss.
 
 | Path | Responsibility |
 | --- | --- |
-| `app/page.tsx` | UI, sounds, animations and local practice controls |
+| `app/page.tsx` | UI, sounds and animations |
 | `lib/client/poker-client.ts` | HTTP command retries, WebSocket snapshots and reconnects |
-| `lib/client/practice.mjs` | Explicitly local engine adapter |
 | `lib/protocol/poker.mjs` | Versioned, runtime-validated action contract |
 | `server/worker-router.ts` | Same-origin API/socket routing and readiness |
 | `server/club-table.ts` | Durable Object, serialization, access, private push, alarms |
@@ -145,9 +144,6 @@ payments. Dunzo is Arun; if Dunzo and Ishita have opposing net balances, offset
 them first, then match the remaining debtors and creditors. Individual results are
 not merged or changed. One chip equals one rupee; suggested payments display rupees (for example, Rs.300).
 
-See [staging history reset](docs/HISTORY_TEST_DATA.md) for the console-triggered
-one-time reset and four sample games using the current roster.
-
 ## Table UI
 
 The six-row table menu contains Sit Out/Sit In, Stand Up, Hand History, Game Info,
@@ -187,10 +183,3 @@ directly without dismissing the composer. The viewport follows native keyboard
 resize and panning offsets. The action-button group has no turn/selection glow;
 seat highlights, the moving beam and deliberately queued individual pre-actions
 remain the turn/selection indicators.
-
-## Staging Test UI
-
-The staging home screen exposes one Test UI lab with guided visual reviews,
-selectable seeded scenarios, configurable simulation and isolated real-server
-connection testing. See [the test-lab guide](docs/TEST_LAB.md). Production excludes
-these routes and controls.

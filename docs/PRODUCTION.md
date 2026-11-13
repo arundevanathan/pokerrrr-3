@@ -2,9 +2,7 @@
 
 Production is `dunzo-club`, at https://dunzo-club.arun-devanathan.workers.dev/.
 It serves the same client and multiplayer server as staging, built with
-`NEXT_PUBLIC_APP_ENV=production` and `APP_ENV=production`. Practice, preview and
-simulated-history controls are hidden. Server-side simulated history and reset
-operations are staging-only.
+`NEXT_PUBLIC_APP_ENV=production` and `APP_ENV=production`. Both environments serve live multiplayer tables.
 
 ## Isolation
 

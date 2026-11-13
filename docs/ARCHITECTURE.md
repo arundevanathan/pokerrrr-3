@@ -29,7 +29,6 @@ All multiplayer data lives in the same Durable Object's SQLite-backed storage.
 | `command:<player>:<id>` | Payload signature and acknowledgement for retry deduplication |
 | `hand:<code>:<number>` | Completed hand archive |
 | `session:<code>` | Completed session results, independent of the active room |
-| SQL `history_examples` | Isolated simulated history, available only in staging |
 
 The D1/Drizzle files preserve the original hosting integration and are not used
 by the multiplayer coordinator. Local Wrangler state is separate from deployed data.
@@ -53,8 +52,7 @@ have separate components. `lib/table-presentation.mjs` defines shared timing;
 `lib/use-table-effects.ts` and `lib/poker-audio.ts` handle browser effects.
 
 `lib/client/poker-client.ts` owns multiplayer transport and pending-command recovery.
-Only explicit practice mode runs the engine in the browser, through
-`lib/client/practice.mjs`. Practice does not write multiplayer storage.
+The server runs the game engine for all tables.
 
 The service worker caches install assets only. Private game responses stay on the
 network. History and settlement use India calendar dates; suggested transfers

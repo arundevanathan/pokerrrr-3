@@ -116,29 +116,26 @@ export class TableService {
   // Read the full archive so settlement includes games beyond the visible UI page.
   async completedGames({
     from,
-    to,
-    examples
+    to
   } = {}) {
     const {
       start,
       end
     } = historyRange(from, to);
-    let records = [];
-    if (examples) records = examples;
-  else {
-      let startAfter;
-      for (; ;) {
-        const page = await this.storage.list({
-          prefix: 'session:',
-          limit: 128,
-          ...(startAfter && {
-            startAfter
-          })
-        });
-        records.push(...page.values());
-        if (page.size < 128) break;
-        startAfter = [...page.keys()].at(-1);
+    const records = [];
+    let startAfter;
+    for (;;) {
+      const page = await this.storage.list({
+        prefix: 'session:',
+        limit: 128,
+        ...(startAfter && {startAfter})
+      });
+      for (const [key, record] of page) {
+        // The retired history reset seeded these four codes into the live archive.
+        if (!/^session:STG00[1-4]$/.test(key)) records.push(record);
       }
+      if (page.size < 128) break;
+      startAfter = [...page.keys()].at(-1);
     }
     return records.filter(r => r.closedAt >= start && r.closedAt < end).sort((a, b) => b.closedAt - a.closedAt || b.code.localeCompare(a.code));
   }
@@ -146,18 +143,15 @@ export class TableService {
     from,
     to,
     cursor,
-    participantId,
-    participantName,
-    examples
+    participantId
   } = {}) {
     let records = await this.completedGames({
       from,
-      to,
-      examples
+      to
     });
     if (participantId) {
       playerToken.parse(participantId);
-      records = records.filter(record => record.players?.some(player => player.id === participantId || Boolean(examples) && player.name === participantName));
+      records = records.filter(record => record.players?.some(player => player.id === participantId));
     }
     if (cursor) {
       const match = /^(\d+):([A-Z0-9-]+)$/.exec(cursor);
@@ -176,14 +170,12 @@ export class TableService {
   async settlement({
     from,
     to,
-    examples,
     roster = []
   } = {}) {
     historyRange(from, to, true);
     const records = await this.completedGames({
       from,
-      to,
-      examples
+      to
     }),
       totals = aggregateGames(records);
     const payments = suggestedPayments(totals, householdPair(totals, roster));

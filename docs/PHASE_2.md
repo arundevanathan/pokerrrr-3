@@ -1,7 +1,6 @@
 # Phase 2: social experience and table management
 
-Scope: released game features for production and staging. Practice, simulated
-history and history-reset tools remain restricted to staging/local.
+Scope: released game features for production and staging.
 The existing betting rules, side-pot calculation, dealing, rotation and settlement
 remain authoritative and retain their regression coverage.
 

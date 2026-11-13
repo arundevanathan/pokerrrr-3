@@ -323,9 +323,11 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     assert.equal(resumed.player.id, host);
     assert.equal((await api(host, null, code)).me, host);
     console.log('Verified PIN rotation, other-device revocation and current-session continuity.');
-    const layoutCheck = await request(new URL('/layout-check', base));
-    assert.equal(layoutCheck.status, environment === 'production' ? 404 : 200);
-    await layoutCheck.arrayBuffer();
+    for (const path of ['/layout-check', '/test-lab', '/test-lab/table', '/api/test-lab/create']) {
+      const response = await request(new URL(path, base), {method: path.startsWith('/api/') ? 'POST' : 'GET'});
+      assert.equal(response.status, 404, path);
+      await response.arrayBuffer();
+    }
     const games = new Set();
     const extraReactions = ['cheers', 'money', 'tomato', 'crown', 'laugh', 'duck', 'punch'];
     let nextCatalogueAt = Date.now() + 3000;
@@ -494,16 +496,10 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     for (const endpoint of ['history', 'settlement']) {
       const response = await request(new URL(`/api/${endpoint}?demo=1&from=2020-01-01&to=2099-12-31`, base), {headers});
       const body = await response.json();
-      if (environment === 'production') {
-        assert.equal(response.status, 403);
-        assert.match(body.error, /only available in staging/);
-      } else {
-        assert.equal(response.status, 200);
-        assert.equal(body.demo, true);
-        if (endpoint === 'history') assert.equal(body.games.length, 0);
-      }
+      assert.equal(response.status, 403);
+      assert.match(body.error, /Simulated history is unavailable/);
     }
-    console.log('Verified authenticated game history, inclusive date-range suggestions, reconciliation and demo isolation.');
+    console.log('Verified authenticated game history, inclusive date-range suggestions, reconciliation and disabled simulated history.');
     for (const message of liveHost.messages) assert.ok(!JSON.stringify(message).includes(friend));
     for (const message of liveFriend.messages) assert.ok(!JSON.stringify(message).includes(host));
     const next = await api(friend, commandEnvelope({

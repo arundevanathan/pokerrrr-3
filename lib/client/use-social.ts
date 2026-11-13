@@ -11,7 +11,7 @@ export type SocialRoom = {
   players: { id: string; name: string; seat: number; left?: boolean }[];
   settings: { seats: number };
 };
-export function useSocial(room: SocialRoom | null, practice: boolean, connection: Connection, enabled: boolean) {
+export function useSocial(room: SocialRoom | null, connection: Connection, enabled: boolean) {
   const [entries, setEntries] = useState<SocialEntry[]>([]);
   const [bubbles, setBubbles] = useState<SocialEntry[]>([]);
   const [open, setOpenState] = useState(false);
@@ -29,8 +29,7 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
   const latest = useRef(0);
   const epoch = `${room?.code || ''}:${room?.createdAt || ''}:${room?.me || ''}`;
   const epochRef = useRef(epoch);
-  const local = useRef(practice);
-  useLayoutEffect(() => { active.current = room; epochRef.current = epoch; local.current = practice; }, [room, epoch, practice]);
+  useLayoutEffect(() => { active.current = room; epochRef.current = epoch; }, [room, epoch]);
   const setOpen = useCallback((value: boolean) => { setOpenState(value); }, []);
   const retry = useRef<{ code: string; requestId: string; text: string } | null>(null);
   const merge = useCallback((incoming: SocialEntry[]) => {
@@ -48,7 +47,7 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
   }, [enabled, merge]);
   const load = useCallback(async (before?: string) => {
     const current = active.current;
-    if (!enabled || !current || local.current) return;
+    if (!enabled || !current) return;
     const started = epochRef.current;
     setLoading(true);
     try {
@@ -86,13 +85,6 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
     document.addEventListener('visibilitychange', hide);
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', hide); };
   }, []);
-  function practiceEntry(data: Partial<SocialEntry>) {
-    const current = active.current;
-    if (!current) return;
-    const me = current.players.find((p) => p.id === current.me);
-    receive({ code: current.code, id: crypto.randomUUID(), sequence: Date.now(), at: Date.now(),
-      kind: 'message', sender: { key: current.me, name: me?.name || 'You', seat: me && !me.left ? me.seat : null }, ...data });
-  }
   async function send(text: string) {
     const current = active.current;
     if (!current || !enabled || current.phase === 'closed' || inFlight.current || !text.trim()) return false;
@@ -103,11 +95,8 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
     retry.current = request;
     inFlight.current = request.requestId;
     try {
-      if (practice) practiceEntry({ text: request.text });
-      else {
-        const result = await PokerClient.auth('chat', request);
-        if (started === epochRef.current) receive(result.entry);
-      }
+      const result = await PokerClient.auth('chat', request);
+      if (started === epochRef.current) receive(result.entry);
       if (retry.current?.requestId === request.requestId) retry.current = null;
       return true;
     } catch (e) { if (started === epochRef.current) setError(`${(e as Error).message}. Send again to retry.`); return false; }
@@ -117,5 +106,5 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
     setOpen(false); setHistoryFocus(id); setHistoryOpen(true);
   }
   return { entries, bubbles, open, setOpen, composeBaseline, draft, setDraft, historyOpen, setHistoryOpen, historyFocus, openHistory, cursor, loading, sending, error, receive, send,
-    loadMore: () => cursor ? load(cursor) : load(), practiceEntry };
+    loadMore: () => cursor ? load(cursor) : load() };
 }

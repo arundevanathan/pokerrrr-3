@@ -14,7 +14,6 @@ export function PlayerLobby({
   error,
   onLogin,
   onOpen,
-  onPractice,
   onRetry,
   hasPending
 }: {
@@ -26,13 +25,10 @@ export function PlayerLobby({
   error: string;
   onLogin: (id: string, pin: string) => Promise<void>;
   onOpen: (settings: any) => Promise<void>;
-  onPractice?: () => void;
   onRetry: () => void;
   hasPending: boolean;
 }) {
-  const [simulate, setSimulate] = useState(false),
-    [opponents, setOpponents] = useState(5),
-    [selected, setSelected] = useState(''),
+  const [selected, setSelected] = useState(''),
     [pin, setPin] = useState(''),
     [bb, setBb] = useState(50),
     [rotation, setRotation] = useState(3),
@@ -69,7 +65,7 @@ export function PlayerLobby({
     </> : <>
 
       <h2>
-        {activeGame ? 'A game is running right now' : simulate && onPractice ? 'Start Simulation' : 'Start Game'}
+        {activeGame ? 'A game is running right now' : 'Start Game'}
       </h2>
 
       {activeGame ? <p>{activeGame.players.map((p: any) => p.name).join(' · ') || 'Waiting for players'}<br />{activeGame.settings.sb} / {activeGame.settings.bb} blinds</p> : null}
@@ -80,8 +76,7 @@ export function PlayerLobby({
           bb,
           rotation,
           timer,
-          games,
-          ...(onPractice && simulate ? {simulate:true, opponents} : {})
+          games
         });
       }}>
 
@@ -94,7 +89,6 @@ export function PlayerLobby({
             </label>)}
           </fieldset>
 
-          {onPractice && <><label className="simulation-choice"><input type="checkbox" checked={simulate} onChange={e=>setSimulate(e.target.checked)} /> Simulate players</label>{simulate && <label>Simulated opponents<select value={opponents} onChange={e=>setOpponents(Number(e.target.value))}>{[1,2,3,4,5,6,7].map(n=><option key={n} value={n}>{n} opponents · {n+1} total players</option>)}</select></label>}</>}
           <label>Big Blind<input type="number" min={20} max={300} step={2} value={bb} onChange={e => setBb(Number(e.target.value))} required /><small>Allowed: 20–300 · Small Blind: {bb > 0 ? bb / 2 : 0}</small></label>
 
           <label>Time to act<select value={timer} onChange={e => setTimer(Number(e.target.value))}>
@@ -107,7 +101,7 @@ export function PlayerLobby({
         </>}
 
         <button className="primary full" disabled={busy || !activeGame && games.length === 0}>
-          {busy ? 'Opening…' : activeGame ? 'Join Now' : simulate && onPractice ? 'Start Simulation' : 'Start Game'}
+          {busy ? 'Opening…' : activeGame ? 'Join Now' : 'Start Game'}
         </button>
 
       </form>
@@ -117,10 +111,6 @@ export function PlayerLobby({
     {error && <div className="error" role="alert">
       {error}
       {hasPending && <button type="button" onClick={onRetry}>Retry last action</button>}
-    </div>}
-
-    {onPractice && <div className="practice-row">
-      <button onClick={onPractice}>Test UI</button>
     </div>}
 
   </section>;
