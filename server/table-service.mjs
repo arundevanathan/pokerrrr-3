@@ -290,7 +290,8 @@ export class TableService {
       };
     });
   }
-  async advance(now = Date.now(), connected = undefined) {
+  /** @param {number} [now] @param {Set<string>} [connected] */
+  async advance(now = Date.now(), connected) {
     return this.storage.transaction(async tx => {
       const code = await tx.get('active');
       if (!code) {
