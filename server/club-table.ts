@@ -1,4 +1,5 @@
 import { resetStagingHistory } from '../lib/staging-history.mjs';
+import { clearCompletedHistory } from '../lib/production-history-cleanup.mjs';
 import { historyViewerKey } from '../lib/game-history.mjs';
 import { DurableObject } from 'cloudflare:workers';
 import { TableService, TableError, nextDeadline } from './table-service.mjs';
@@ -91,9 +92,18 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
       let advanced: string | null = null;
       try {
         const url = new URL(request.url);
-        if (url.pathname === '/api/players' && request.method === 'GET') return json({
-          players: this.auth.players()
-        });
+        if (url.pathname === '/api/players' && request.method === 'GET') {
+          const sql = this.ctx.storage.sql;
+          if (this.env.APP_ENV === 'production' && sql.exec("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='history_cleanup_request'").toArray().length) {
+            const pending = sql.exec('SELECT cutoff FROM history_cleanup_request WHERE completed IS NULL LIMIT 1').toArray()[0];
+            if (pending && typeof pending.cutoff === 'number') {
+              const result = await clearCompletedHistory(this.ctx.storage, pending.cutoff);
+              sql.exec('UPDATE history_cleanup_request SET completed=?, removed=?, remaining=?, had_active=? WHERE cutoff=?',
+                Date.now(), result.removed, result.remaining, Number(result.active), pending.cutoff);
+            }
+          }
+          return json({ players: this.auth.players() });
+        }
         if (url.pathname === '/api/login' && request.method === 'POST') {
           this.limit(`login:${request.headers.get('CF-Connecting-IP') || 'local'}`, 40);
           const {
