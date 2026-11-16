@@ -5246,4 +5246,16 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   font-size: clamp(24px, 7vw, 36px); line-height: 1; font-weight: 800; color: #080808;
 }
 .app.in-game :is(.board-cards, .personal-hole-cards) .card.red > span { color: #d90020; }
-.app.in-game .two-runouts .board-cards .card:not(.back) > span { font-size: clamp(21px, 6vw, 28px); }
+/* Compact runout cards need enough room for both the rank and the suit. */
+.app.in-game .two-runouts .board-cards > .board-card-wrap > .card:not(.back) {
+  justify-content: center;
+  gap: 1px;
+  padding: 2px 3px;
+}
+.app.in-game .two-runouts .board-cards .card:not(.back) > b {
+  font-size: clamp(12px, 3.4vw, 15px);
+}
+.app.in-game .two-runouts .board-cards .card:not(.back) > span {
+  font-size: clamp(15px, 4.4vw, 19px);
+  margin-top: 0;
+}
