@@ -974,7 +974,7 @@ export default function Home() {
 
         {panel === 'menu' && <>
           <h2>Table Menu</h2>
-          {room.host && room.sessionEndsAt > clock + offset.current && !room.terminationPending && <div className="session-extensions" aria-label="Extend session">
+          {room.sessionEndsAt > clock + offset.current && !room.terminationPending && <div className="session-extensions" aria-label="Extend session">
             {[15, 30].map(minutes => <button key={minutes} disabled={controlsBusy} onClick={async () => {
               if (await send('extend_session', {minutes})) setPanel('');
             }}>Add {minutes} min</button>)}

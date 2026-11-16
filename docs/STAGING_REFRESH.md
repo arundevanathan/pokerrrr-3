@@ -11,8 +11,9 @@ game records and credentials are not part of the copy. See
 ## Game and table changes
 
 - The session length is selected at setup. The default is 60 minutes, with 30 and
-  90 minute options. The server starts the timer at the first deal. The host can
-  extend a running session by 15 or 30 minutes from Table Menu. Expiry uses the
+  90 minute options. The server starts the timer at the first deal. Any signed-in
+  player viewing the table can extend a running session by 15 or 30 minutes from
+  Table Menu, including spectators and sitting-out players. Expiry uses the
   same end-of-session path as manual termination. The current hand and payouts
   complete before cash-out. Existing untimed games remain untimed.
 - Two consecutive personal turn timeouts while disconnected schedule Sit Out

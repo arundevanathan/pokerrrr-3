@@ -112,8 +112,7 @@ test('session timer starts on the first deal, extends from its deadline and fini
   startHand(r, 11000);
   const original = 11000 + 30 * 60000;
   assert.equal(r.sessionEndsAt, original);
-  assert.throws(() => command(r, ids[1], {type:'extend_session', minutes:15}, 11001), /host/i);
-  command(r, ids[0], {type:'extend_session', minutes:15}, 11002);
+  command(r, ids[1], {type:'extend_session', minutes:15}, 11002);
   assert.equal(r.sessionEndsAt, original + 15 * 60000);
   r.deadline = r.sessionEndsAt + 1000;
   assert.equal(nextDeadline(r), r.sessionEndsAt);
@@ -161,4 +160,26 @@ test('an already sitting-out player can leave during another hand and must re-en
   command(r, ids[0], {type:'join', buyin:1000}, 11003);
   assert.equal(r.players[0].stack, 1000);
   assert.equal(r.players[0].inHand, false);
+});
+
+test('a signed-in spectator can extend a running game once per command', async () => {
+  const service = new TableService(new MemoryStorage());
+  let {snapshot} = await service.execute(ids[0], commandEnvelope({type:'create', name:'Alice', sessionMinutes:30}), 10000);
+  const {code} = snapshot;
+  await service.execute(ids[1], commandEnvelope({type:'join', name:'Bob', code}), 10001);
+  snapshot = await service.snapshot(ids[0], code);
+  ({snapshot} = await service.execute(ids[0], commandEnvelope({type:'deal',code},snapshot), 11000));
+  const original = snapshot.sessionEndsAt;
+  const watcher = await service.snapshot(ids[2], code);
+  assert.ok(!watcher.players.some(player => player.id === ids[2]));
+  const request = commandEnvelope({type:'extend_session', code, minutes:30},watcher);
+  const accepted = await service.execute(ids[2], request, 11001);
+  const replay = await service.execute(ids[2], request, 11002);
+  assert.equal(accepted.snapshot.sessionEndsAt, original + 30 * 60000);
+  assert.equal(replay.snapshot.sessionEndsAt, accepted.snapshot.sessionEndsAt);
+  assert.equal(replay.replayed, true);
+  await assert.rejects(
+    service.execute(ids[2], commandEnvelope({type:'extend_session', code, minutes:15},watcher), accepted.snapshot.sessionEndsAt),
+    /No running session timer/
+  );
 });

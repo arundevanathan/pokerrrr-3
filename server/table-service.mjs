@@ -255,7 +255,7 @@ export class TableService {
           };
         }
         if (input.type !== 'join') {
-          requireState(input.type === 'end' || room.host === token || room.players.some(p => p.id === token), 'Join this table first', 403);
+          requireState(['end', 'extend_session'].includes(input.type) || room.host === token || room.players.some(p => p.id === token), 'Join this table first', 403);
           if (input.decision !== undefined) {
             if (input.handId !== room.handStartedAt || now >= room.deadline ||
                 input.decision !== bettingDecision(room, legal(room, token))) {
