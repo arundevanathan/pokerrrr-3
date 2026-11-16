@@ -396,7 +396,7 @@ export default function Home() {
       autoResume.current = true;
       update(r);
       const returning = r.players.find((p: any) => p.id === r.me && !p.left);
-      if (enableReactions && returning?.away && !returning.pendingSeatAction && r.phase !== 'closed') {
+      if (enableReactions && returning?.away && !returning.sittingOut && !returning.pendingSeatAction && r.phase !== 'closed') {
         const back = await api({ type: 'set_away', code: r.code, away: false });
         update(back);
       }
@@ -543,9 +543,11 @@ export default function Home() {
     setPanel('buyin');
   };
   const seated = Boolean(me && !me.left);
+  const reentryBuyin = me?.left ? me.reentryBuyin || 0 : 0;
+  const sessionSeconds = Math.max(0, Math.ceil((room?.sessionEndsAt - clock - offset.current) / 1000));
   function chooseSeat(seat: number) {
     setSelectedSeat(seat);
-    setRebuy(room.settings.buyin);
+    setRebuy(me?.reentryBuyin || room.settings.buyin);
     setError('');
     setPanel('seat');
   }
@@ -633,7 +635,8 @@ export default function Home() {
             <strong>{room.game || room.settings.games?.[0] || 'NLH'}</strong>
             <span className="table-stakes">{fmt(room.settings.sb)}/{fmt(room.settings.bb)}</span>
             <span>Hand {room.phase === 'lobby' ? 0 : room.completed + (['showdown', 'closed'].includes(room.phase) ? 0 : 1)}</span>
-            <span className={`typing-turn-status ${myTurn && live ? 'is-your-turn' : ''}`} role="status">
+            {room.sessionEndsAt && <span className="session-clock" aria-label="Session time remaining">{Math.floor(sessionSeconds / 60)}:{String(sessionSeconds % 60).padStart(2, '0')}</span>}
+            <span className={`typing-turn-status ${myTurn && live ? `is-your-turn ${seconds <= 5 ? 'urgent' : ''}` : ''}`} role="status">
               {myTurn && live ? `Your turn · ${seconds}s${bettingStatus}` : live ? `${room.players.find((p: { id: string; name: string }) => p.id === room.turn)?.name || 'Player'}’s turn` : voting ? 'Runout vote' : room.phase === 'showdown' ? 'Showdown' : room.game}
             </span>
             {(room.settings.games?.length || 0) > 1 && room.phase !== 'closed' && <small className="next-variant">
@@ -657,7 +660,7 @@ export default function Home() {
                   <button className="secondary" onClick={() => setPanel('ledger')}>Current Game Rankings</button>
                 </div> : <>
                   <div className="pot-label">
-                    {awardRun && currentPayment ? `${room.runCount === 2 ? `RUN ${awardRun} · ` : ''}${currentPayment.label}` : room.phase === 'showdown' ? 'LAST POT' : 'POT'}
+                    {awardRun && currentPayment ? `${room.runCount === 2 ? `RUN ${awardRun} · ` : ''}${currentPayment.tied ? `${currentPot.length}-way split` : currentPayment.label}` : room.phase === 'showdown' ? 'LAST POT' : 'POT'}
                   </div>
                   <div className="pot-amount">
                     {fmt(awardRun && currentPayment ? currentPot.reduce((sum: number, p: { wonAmount: number; amount: number }) => sum + (p.wonAmount || p.amount), 0) : room.phase === 'showdown' ? room.lastPot : room.players.reduce((s: number, p: any) => s + (p.inHand ? p.total : 0), 0))}
@@ -741,7 +744,8 @@ export default function Home() {
                       }
                     }}>
 
-                    {live && !effects.dealing && p.id === room.turn && room.deadline && <svg className={`seat-timer ${seconds <= 5 ? 'urgent' : ''}`} viewBox="0 0 100 100" preserveAspectRatio="none" role="timer" aria-label={`${p.name}: ${seconds} seconds remaining`}>
+                    {live && p.id === room.turn && room.deadline && <span className={`seat-clock-label ${seconds <= 5 ? 'urgent' : ''}`}>{seconds}s</span>}
+                    {live && p.id === room.turn && room.deadline && <svg className={`seat-timer ${seconds <= 5 ? 'urgent' : ''}`} viewBox="0 0 100 100" preserveAspectRatio="none" role="timer" aria-label={`${p.name}: ${seconds} seconds remaining`}>
                       <rect x="2" y="2" width="96" height="96" rx="10" pathLength="100" strokeDasharray={`${turnFraction * 100} 100`} />
                     </svg>}
                     <span>
@@ -786,7 +790,7 @@ export default function Home() {
             if (social.open && (e.target as HTMLElement).closest('.betting-controls button, .pause-deal')) e.preventDefault();
           }} className="action-zone">
             <div className="hand-toolbar">
-              <span className={`turn-status ${myTurn && live ? 'is-your-turn' : ''}`} role="status">
+              <span className={`turn-status ${myTurn && live ? `is-your-turn ${seconds <= 5 ? 'urgent' : ''}` : ''}`} role="status">
                 {myTurn && live ? `Your turn · ${seconds}s${bettingStatus}` : live ? `${room.players.find((p: { id: string; name: string }) => p.id === room.turn)?.name || 'Player'}’s turn` : room.game}
               </span>
               <div className="hand-toolbar-actions"><button className="text-button" onClick={() => setPanel('ledger')}>Rankings</button>
@@ -796,7 +800,7 @@ export default function Home() {
             {seated && <div className="personal-hand" aria-label="Your cards">
               <span className="typing-hole-label" aria-hidden="true">Your cards</span>
               <div className="personal-hole-cards" aria-label="Your cards">
-                {me?.inHand && me.cards?.length ? me.cards.map((c: number, i: number) => <Card key={`${room.handStartedAt || 0}:${i}`} value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />) : <span className="personal-cards-placeholder">{room.game || 'NLH'} · Your cards</span>}
+                {me?.inHand && me.cards?.length ? [...me.cards].sort((a: number, b: number) => a % 13 - b % 13 || a - b).map((c: number, i: number) => <Card key={`${room.handStartedAt || 0}:${i}`} value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />) : <span className="personal-cards-placeholder">{room.game || 'NLH'} · Your cards</span>}
               </div>
             </div>}
             {me?.pendingSeatAction === 'leave' && <p className="game-status" role="status">Standing up after this hand and payouts. <button className="text-button" disabled={controlsBusy || room.terminationPending} onClick={() => send('cancel_stand_up')}>Cancel</button></p>}
@@ -952,14 +956,14 @@ export default function Home() {
             if (selectedSeat === null) return;
             if (await send('join', {
               seat: selectedSeat,
-              buyin: rebuy,
+              buyin: reentryBuyin || rebuy,
               name: player?.name || name || 'You'
             })) {
               setSelectedSeat(null);
               setPanel('');
             }
           }}>
-            <label>Chips<input type="number" min={room.settings.bb * 2} max={room.settings.maxBuyin} step={1} required value={rebuy} onChange={e => setRebuy(Number(e.target.value))} /></label>
+            {reentryBuyin ? <p>Same-game buy-in <strong>{fmt(reentryBuyin)} chips</strong></p> : <label>Chips<input type="number" min={room.settings.bb * 2} max={room.settings.maxBuyin} step={1} required value={rebuy} onChange={e => setRebuy(Number(e.target.value))} /></label>}
             <button className="primary full" disabled={controlsBusy || selectedSeat === null || room.players.some((p: any) => !p.left && p.seat === selectedSeat) || room.terminationPending}>Load Chips</button>
           </form>
           {selectedSeat !== null && room.players.some((p: any) => !p.left && p.seat === selectedSeat) && <p role="status">That seat is taken. Close this dialog and choose another seat.</p>}
@@ -970,6 +974,11 @@ export default function Home() {
 
         {panel === 'menu' && <>
           <h2>Table Menu</h2>
+          {room.host && room.sessionEndsAt > clock + offset.current && !room.terminationPending && <div className="session-extensions" aria-label="Extend session">
+            {[15, 30].map(minutes => <button key={minutes} disabled={controlsBusy} onClick={async () => {
+              if (await send('extend_session', {minutes})) setPanel('');
+            }}>Add {minutes} min</button>)}
+          </div>}
           <div className="menu-list">
             {showTestTools && demo.current && <button onClick={previewAllIn}><Layers3 size={18} /> Preview all-in vote</button>}
             {seated && room.phase !== 'closed' && <>
@@ -994,7 +1003,7 @@ export default function Home() {
         {panel === 'confirm' && <div className="confirm">
             <h2>{confirm === 'stand_up' ? 'Stand up?' : 'Terminate this game?'}</h2>
             <p>
-              {confirm === 'stand_up' ? (handActive || room.phase === 'showdown' && !effects.settled ? 'Stand up and cash out after this hand and payouts? Your seat stays reserved until then. Returning requires a new buy-in.' : 'Stand up, cash out your chips and release your seat? Returning requires a new buy-in.') : handActive ? 'End the game for everyone after this hand and payouts? All players’ remaining chips will be cashed out.' : room.phase === 'showdown' && !effects.settled ? 'End the game for everyone after payouts finish and cash out all remaining chips?' : 'End the game for everyone and cash out all remaining chips?'}
+              {confirm === 'stand_up' ? (!(me?.away && !me.inHand) && (handActive || room.phase === 'showdown' && !effects.settled) ? 'Stand up and cash out after this hand and payouts? Your seat stays reserved until then. Returning requires a new buy-in.' : 'Stand up, cash out your chips and release your seat? Returning requires a new buy-in.') : handActive ? 'End the game for everyone after this hand and payouts? All players’ remaining chips will be cashed out.' : room.phase === 'showdown' && !effects.settled ? 'End the game for everyone after payouts finish and cash out all remaining chips?' : 'End the game for everyone and cash out all remaining chips?'}
             </p>
             <div className="confirm-actions"><button className="secondary" disabled={busy} onClick={() => { setConfirm(''); setPanel('menu'); }}>Cancel</button>
             <button className="primary" disabled={controlsBusy || Boolean(room.terminationPending)} onClick={async () => {

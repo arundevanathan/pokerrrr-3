@@ -8,6 +8,20 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
     [now, setNow] = useState(Date.now());
   const previous = useRef<any>(null),
     heard = useRef<any>(null);
+  const waitingForVisibleSnapshot = useRef(true);
+  const silence = useRef(true);
+  const audibleAfter = useRef(0);
+  useLayoutEffect(() => {
+    if (!room || document.hidden) {
+      silence.current = true;
+      if (!room) waitingForVisibleSnapshot.current = true;
+      return;
+    }
+    const first = waitingForVisibleSnapshot.current || previous.current?.code !== room.code;
+    silence.current = first;
+    if (first) audibleAfter.current = room.serverTime || Date.now();
+    waitingForVisibleSnapshot.current = false;
+  }, [room]);
   const handKey = room ? `${room.code}:${room.handStartedAt ?? (room.phase === 'showdown' ? room.completed : room.completed + 1)}` : '';
   useLayoutEffect(() => {
     if (!room) {
@@ -39,8 +53,8 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
           startedAt,
           key: handKey
         };
-        if (elapsed < 100) audio?.play('shuffle');
-        for (const f of plan.flights) if (f.at >= elapsed) audio?.play('deal', f.at - elapsed);
+        if (!silence.current && elapsed < 100) audio?.play('shuffle');
+        for (const f of plan.flights) if (!silence.current && f.at >= elapsed) audio?.play('deal', f.at - elapsed);
       }
     }
     if (newResult) {
@@ -64,10 +78,10 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
         if (run.run === 1) next.board = timeline; else next.board2 = timeline;
         for (const event of run.events) {
           const delay = timeline.startedAt + event.at - timestamp;
-          if (delay >= 0) audio?.play('board', delay);
+          if (!silence.current && delay >= 0) audio?.play('board', delay);
         }
         const winDelay = startedAt + run.payoutStart - timestamp;
-        if (winDelay >= 0) audio?.play('win', winDelay);
+        if (!silence.current && winDelay >= 0) audio?.play('win', winDelay);
       }
     } else if (changedBoard && room.board.length && !first) {
       const events = boardPlan(newHand ? 0 : before.boardCount, room.board.length),
@@ -77,7 +91,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
         startedAt: base,
         key: `${handKey}:street`
       };
-      for (const event of events) audio?.play('board', base - timestamp + event.at);
+      if (!silence.current) for (const event of events) audio?.play('board', base - timestamp + event.at);
     }
     if (newHand || changedBoard || newResult) setFlow((old: any) => newHand ? next : {
       ...old,
@@ -107,7 +121,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
       return;
     }
     const last = heard.current;
-    if (last?.code === room.code) (room.actionEvents || []).filter((e: any) => e.seq > last.seq).forEach((e: any, i: number) => audio?.play(e.type, i * 75));
+    if (!silence.current && last?.code === room.code) (room.actionEvents || []).filter((e: any) => e.seq > last.seq && e.at > audibleAfter.current).forEach((e: any, i: number) => audio?.play(e.type, i * 75));
     heard.current = {
       code: room.code,
       seq: room.actionSeq || 0
@@ -115,7 +129,11 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
   }, [room?.code, room?.actionSeq, audio]);
   useEffect(() => {
     const hide = () => {
-      if (document.hidden) audio?.cancel();
+      if (document.hidden) {
+        waitingForVisibleSnapshot.current = true;
+        silence.current = true;
+        audio?.cancel();
+      }
     };
     document.addEventListener('visibilitychange', hide);
     return () => {

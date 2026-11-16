@@ -15,7 +15,7 @@ const requireState = (condition, message, status = 409) => {
 export function nextDeadline(room) {
   if (!room || room.phase === 'closed') return null;
   const departure = room.phase === 'showdown' && room.players.some(p => p.pendingSeatAction === 'leave') ? room.payoutFinishedAt : null;
-  const deadlines = [departure, room.deadline, room.phase === 'runout_vote' ? room.runVote?.deadline : null, room.phase === 'showdown' ? room.terminationPending ? room.payoutFinishedAt : !room.paused ? room.nextDealAt : null : null].filter(Number.isFinite);
+  const deadlines = [departure, room.sessionEndsAt, room.deadline, room.phase === 'runout_vote' ? room.runVote?.deadline : null, room.phase === 'showdown' ? room.terminationPending ? room.payoutFinishedAt : !room.paused ? room.nextDealAt : null : null].filter(Number.isFinite);
   return deadlines.length ? Math.min(...deadlines) : null;
 }
 async function digest(value) {
@@ -261,7 +261,7 @@ export class TableService {
                 input.decision !== bettingDecision(room, legal(room, token))) {
               throw new TableError('This betting decision has changed. Review the table.', 409, view(room, token, now, true));
             }
-          } else {
+          } else if (input.type !== 'extend_session') {
             requireState(input.version === room.version, 'The table changed. Review your turn and try again.');
             requireState(input.handId === (room.handStartedAt || 0), 'This hand has changed. Review the table.');
           }
@@ -290,7 +290,7 @@ export class TableService {
       };
     });
   }
-  async advance(now = Date.now()) {
+  async advance(now = Date.now(), connected = undefined) {
     return this.storage.transaction(async tx => {
       const code = await tx.get('active');
       if (!code) {
@@ -299,7 +299,7 @@ export class TableService {
       }
       const previous = await tx.get(`room:${code}`),
         room = structuredClone(previous);
-      if (tick(room, now)) await this.save(tx, previous, room);
+      if (tick(room, now, true, connected)) await this.save(tx, previous, room);
   else {
         const deadline = nextDeadline(room);
         if (deadline !== null) await tx.setAlarm(Math.max(now + 1, deadline));

@@ -5219,3 +5219,31 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 .app.in-game.composing-chat .table-motion, .app.in-game.composing-chat .reaction-overlay, .app.in-game.composing-chat .reaction-picker { display: none; }
 .app.in-game.composing-chat .typing-turn-status.is-your-turn { color: #a5e9c1; font-weight: 700; }
+
+/* Keep the table's upper grid edge and felt height steady across the showdown. */
+.app.in-game .topbar { flex-shrink: 0; }
+.app.in-game:not(.composing-chat) .play-area {
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, min(var(--action-height), 46%));
+}
+.app.in-game:not(.composing-chat) .play-area > .action-zone {
+  height: 100%;
+  align-self: stretch;
+}
+.in-game .rotation-bar .session-clock { margin-left: auto; font-variant-numeric: tabular-nums; }
+.in-game .session-extensions { display: flex; gap: 8px; margin-bottom: 8px; }
+.in-game .seat-clock-label {
+  position: absolute; z-index: 2; top: -13px; right: -8px; padding: 2px 5px;
+  border-radius: 6px; background: #ffdc52; color: #221900; font-weight: 900;
+  font-size: 13px; font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.in-game .seat-clock-label.urgent { background: #ff5e52; color: #210400; }
+.in-game .seat-timer rect { stroke: #ffdc52; stroke-width: 4; }
+.in-game .seat-timer.urgent rect { stroke: #ff5e52; }
+.app.in-game .turn-status.is-your-turn,
+.app.in-game .typing-turn-status.is-your-turn { color: #ffe16a; font-size: 14px; font-weight: 850; }
+.app.in-game .is-your-turn.urgent { color: #ff766a; }
+.app.in-game :is(.board-cards, .personal-hole-cards) .card:not(.back) > span {
+  font-size: clamp(24px, 7vw, 36px); line-height: 1; font-weight: 800; color: #080808;
+}
+.app.in-game :is(.board-cards, .personal-hole-cards) .card.red > span { color: #d90020; }
+.app.in-game .two-runouts .board-cards .card:not(.back) > span { font-size: clamp(21px, 6vw, 28px); }

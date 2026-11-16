@@ -30,8 +30,8 @@ for (const game of ['NLH', 'PLO4', 'PLO5']) test(`${game}: all-in departure wait
   const expected = player.stack;
   tick(r, r.payoutFinishedAt); assert.equal(player.left, true); assert.equal(player.cashout, expected); assert.equal(player.stack, 0);
   tick(r, r.payoutFinishedAt + 1); assert.equal(player.cashout, expected);
-  command(r, player.id, { type: 'join', seat: 4, buyin: 1700 }, r.payoutFinishedAt + 2);
-  assert.equal(player.buyins, 2700); assert.equal(player.cashout, expected); assert.equal(player.stack, 1700); assert.equal(player.inHand, false);
+  command(r, player.id, { type: 'join', seat: 4, buyin: expected || 1700 }, r.payoutFinishedAt + 2);
+  assert.equal(player.buyins, 1000 + (expected || 1700)); assert.equal(player.cashout, expected); assert.equal(player.stack, expected || 1700); assert.equal(player.inHand, false);
   assert.equal(r.players.reduce((s, p) => s + p.stack + p.cashout - p.buyins, 0), 0);
 });
 test('Away preserves current turn and deadline, excludes future hands, return restores eligibility', () => {
@@ -54,13 +54,13 @@ test('cash-out, ledger, receipt and termination are atomic and idempotent across
   let ledger = [...(await storage.list({ prefix: `accounting:${code}:` })).values()].filter(v => v?.kind);
   assert.deepEqual(ledger.map(e => [e.kind, e.amount]), [['buy_in', 1000], ['cash_out', 1000]]);
   assert.equal(result.snapshot.players[0].left, true);
-  result = await service.execute(ids[0], commandEnvelope({ type: 'join', code, seat: 3, name: 'Alice', buyin: 1700 }), 10003);
+  result = await service.execute(ids[0], commandEnvelope({ type: 'join', code, seat: 3, name: 'Alice', buyin: 1000 }), 10003);
   const end = commandEnvelope({ type: 'end', code }, result.snapshot);
   await service.execute(ids[0], end, 10004); await new TableService(storage).execute(ids[0], end, 10005);
   ledger = [...(await storage.list({ prefix: `accounting:${code}:` })).values()].filter(v => v?.kind);
-  assert.equal(ledger.filter(e => e.kind === 'cash_out').reduce((s, e) => s + e.amount, 0), 2700);
+  assert.equal(ledger.filter(e => e.kind === 'cash_out').reduce((s, e) => s + e.amount, 0), 2000);
   const archive = await storage.get(`session:${code}`);
-  assert.equal(archive.players[0].buyins, 2700); assert.equal(archive.players[0].cashout, 2700);
+  assert.equal(archive.players[0].buyins, 2000); assert.equal(archive.players[0].cashout, 2000);
 });
 test('stand-up observer has no opponent hole cards and zero chips still releases a seat', () => {
   const r = fixture(); command(r, ids[0], { type: 'stand_up' }, 11000);
@@ -103,4 +103,62 @@ test('uncalled return, accounting entry and receipt survive restart without doub
   assert.equal(room.uncalledReturns.length, 1);
   const ledger = [...(await storage.list({prefix:`accounting:${code}:`})).values()].filter(e => e.kind === 'uncalled_return');
   assert.equal(ledger.length, 1); assert.equal(ledger[0].amount, 980);
+});
+
+test('session timer starts on the first deal, extends from its deadline and finishes the current hand', () => {
+  const r = fixture();
+  r.settings.sessionMinutes = 30;
+  assert.equal(nextDeadline(r), null);
+  startHand(r, 11000);
+  const original = 11000 + 30 * 60000;
+  assert.equal(r.sessionEndsAt, original);
+  assert.throws(() => command(r, ids[1], {type:'extend_session', minutes:15}, 11001), /host/i);
+  command(r, ids[0], {type:'extend_session', minutes:15}, 11002);
+  assert.equal(r.sessionEndsAt, original + 15 * 60000);
+  r.deadline = r.sessionEndsAt + 1000;
+  assert.equal(nextDeadline(r), r.sessionEndsAt);
+  tick(r, r.sessionEndsAt);
+  assert.equal(r.terminationPending, true);
+  assert.equal(r.phase, 'preflop');
+  act(r, r.turn, 'fold', 0, r.deadline);
+  assert.equal(nextDeadline(r), r.payoutFinishedAt);
+  tick(r, r.payoutFinishedAt);
+  assert.equal(r.phase, 'closed');
+  assert.equal(r.players.reduce((total,p) => total + p.cashout,0), 2000);
+});
+
+test('two disconnected turns sit the player out and a connected timeout resets the streak', () => {
+  for (const reconnected of [false,true]) {
+    const r = fixture();
+    const first = r.players[0], other = r.players[1];
+    startHand(r, 11000);
+    assert.equal(r.turn, first.id);
+    tick(r, r.deadline, true, new Set([other.id]));
+    assert.equal(first.disconnectedTimeouts, 1);
+    assert.equal(r.phase, 'showdown');
+    startHand(r, r.payoutFinishedAt + 1);
+    if (r.turn !== first.id) act(r, r.turn, 'call', 0, r.deadline - 1);
+    assert.equal(r.turn, first.id);
+    tick(r, r.deadline, true, new Set(reconnected ? [first.id, other.id] : [other.id]));
+    assert.equal(first.disconnectedTimeouts, reconnected ? 0 : 2);
+    assert.equal(first.pendingSeatAction || null, reconnected ? null : 'sit_out');
+    if (r.phase !== 'showdown') act(r, r.turn, 'fold', 0, r.deadline - 1);
+    assert.equal(Boolean(first.sittingOut), !reconnected);
+  }
+});
+
+test('an already sitting-out player can leave during another hand and must re-enter at the cash-out amount', () => {
+  const r = fixture();
+  command(r, ids[2], {type:'join', name:'Charlie', buyin:800}, 10001);
+  command(r, ids[0], {type:'ready'}, 10002);
+  startHand(r, 11000);
+  const actor = r.turn;
+  command(r, ids[0], {type:'stand_up'}, 11001);
+  assert.equal(r.players[0].left, true);
+  assert.equal(r.players[0].cashout, 1000);
+  assert.equal(r.turn, actor);
+  assert.throws(() => command(r, ids[0], {type:'join', buyin:800}, 11002), /exactly 1000/);
+  command(r, ids[0], {type:'join', buyin:1000}, 11003);
+  assert.equal(r.players[0].stack, 1000);
+  assert.equal(r.players[0].inHand, false);
 });

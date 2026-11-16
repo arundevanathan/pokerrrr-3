@@ -52,7 +52,7 @@ player accounts, follow [PLAYERS.md](PLAYERS.md). Local builds do not modify liv
 
 Cloudflare build configuration:
 
-- Repository: `arundevanathan/pokerrrr-3`, branch `main`, root `/`.
+- Repository: `arundevanathan/pokerrrr-3`, branch `staging/prod-refresh`, root `/`.
 - Build: `pnpm run build:staging`.
 - Deploy: `pnpm run deploy:staging`.
 - Runtime: Node 22 (>=22.13.0), pnpm 11.25.0.

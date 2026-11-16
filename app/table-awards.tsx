@@ -37,14 +37,16 @@ export function TableAwards({room, effects, run, onFocus}: {
     labels = [...new Set(payments.map(p => p.label))],
     label = effects.settled && labels.includes(selectedPot) ? selectedPot : current.label,
     potAwards = payments.filter(p => p.label === label),
-    awards = effects.settled ? potAwards : potAwards.filter(p => p.id === current.id);
+    split = potAwards.length > 1 && potAwards.some(p => p.tied),
+    awards = effects.settled || split ? potAwards : potAwards.filter(p => p.id === current.id);
   return <div className="table-awards" aria-label={`${room.runCount === 2 ? `Run ${run} ` : ''}pot results`}>
     {labels.length > 1 ? <div className="table-pot-tabs" aria-label={`Run ${run} pots`}>
       {labels.map(pot => <button key={pot} disabled={!effects.settled} aria-pressed={pot === label} onClick={() => {
         setSelectedPot(pot);
         onFocus(payments.find(p => p.label === pot)!.id, run);
       }}>{pot}</button>)}
-    </div> : potAwards.some(p => p.tied) ? <span className="table-pot-label">Split pot</span> : null}
+    </div> : null}
+    {split && <span className="table-pot-label">{potAwards.length}-way split</span>}
     <div className="table-award-winners" aria-live="polite">
       {awards.map(award => <div key={award.id}>
         <button className="table-winner-name" disabled={!effects.settled || award.returned} onClick={() => onFocus(award.id, run)}>

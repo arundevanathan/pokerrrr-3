@@ -26,6 +26,8 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
   const active = useRef(room);
   const seen = useRef(new Set<string>());
   const inFlight = useRef<string | null>(null);
+  const newestLoad = useRef<{ epoch: string; at: number } | null>(null);
+  const loadedEpoch = useRef<string | null>(null);
   const latest = useRef(0);
   const epoch = `${room?.code || ''}:${room?.createdAt || ''}:${room?.me || ''}`;
   const epochRef = useRef(epoch);
@@ -46,13 +48,16 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
       setBubbles(previous => [...previous.filter(e => e.sender.key !== entry.sender.key), { ...entry, at: Date.now() }].slice(-8));
     }
   }, [enabled, merge]);
-  const load = useCallback(async (before?: string) => {
+  const load = useCallback(async (before?: string, background = false) => {
     const current = active.current;
     if (!enabled || !current || local.current) return;
     const started = epochRef.current;
-    setLoading(true);
+    if (background && newestLoad.current?.epoch === started && Date.now() - newestLoad.current.at < 5000) return;
+    if (!before) newestLoad.current = { epoch: started, at: Date.now() };
+    if (!background) setLoading(true);
     try {
       const watermark = latest.current;
+      const hasBaseline = loadedEpoch.current === started;
       let data = await PokerClient.auth(`chat?code=${encodeURIComponent(current.code)}${before ? `&before=${before}` : ''}`);
       const incoming: SocialEntry[] = [...data.entries];
       // Fill reconnect gaps even when more than one page arrived while asleep.
@@ -62,13 +67,17 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
         incoming.push(...data.entries);
       }
       if (started !== epochRef.current) return;
-      for (const entry of incoming) seen.current.add(entry.id);
+      for (const entry of incoming) {
+        if (background && hasBaseline && entry.sequence > watermark) receive(entry);
+        seen.current.add(entry.id);
+      }
       merge(incoming);
+      loadedEpoch.current = started;
       setCursor(previous => before || watermark === 0 ? data.nextCursor : previous === null || data.nextCursor === null ? null : String(Math.min(Number(previous), Number(data.nextCursor))));
-      setError('');
-    } catch (e) { if (started === epochRef.current) setError((e as Error).message); }
-    finally { if (started === epochRef.current) setLoading(false); }
-  }, [enabled, merge]);
+      if (!background) setError('');
+    } catch (e) { if (!background && started === epochRef.current) setError((e as Error).message); }
+    finally { if (!background && started === epochRef.current) setLoading(false); }
+  }, [enabled, merge, receive]);
   useEffect(() => {
     // Reset the external game's conversation on identity/session changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -78,8 +87,15 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
   }, [epoch, load, setOpen]);
   useEffect(() => {
     // Synchronize history when the external WebSocket connection recovers.
-    if (connection === 'connected') void load();
+    if (connection === 'connected') void load(undefined, true);
   }, [connection, load]);
+  useEffect(() => {
+    if (!enabled || practice || !room?.code || room.phase === 'closed') return;
+    const refresh = () => { if (!document.hidden && navigator.onLine) void load(undefined, true); };
+    const timer = setInterval(refresh, 8000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+  }, [enabled, practice, room?.code, room?.phase, load]);
   useEffect(() => {
     const timer = setInterval(() => setBubbles(previous => previous.filter(e => Date.now() - e.at < 5000)), 500);
     const hide = () => { if (document.hidden) setBubbles([]); };

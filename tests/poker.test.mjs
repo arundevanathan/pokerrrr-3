@@ -841,12 +841,12 @@ test('host can Get Up, rejoin another seat and retain cumulative accounting', ()
     type: 'join',
     name: 'Host',
     seat: 5,
-    buyin: 1700
+    buyin: 1000
   });
   assert.equal(p.seat, 5);
-  assert.equal(p.buyins, 2700);
+  assert.equal(p.buyins, 2000);
   assert.equal(p.cashout, 1000);
-  assert.equal(p.stack, 1700);
+  assert.equal(p.stack, 1000);
   conservation(r);
 });
 test('any player can terminate during a hand; payout finishes before closure and no next hand is dealt', () => {

@@ -206,3 +206,13 @@ test('one player winning every pot is one award per board; differing winners ret
   // Persisted old presentation plans keep their original separate flights.
   assert.equal(payoutAwards(one, 2).length, 4);
 });
+
+test('a split animates its actual odd-chip shares at the same instant', () => {
+  const result = [51,50].map((amount,i) => ({id:String(i),name:String(i),amount,
+    pots:[{label:'Main pot',amount,run:1,tied:true}]}));
+  const plan = {...showdownTiming(5,5,1),simultaneousSplits:true};
+  const awards = payoutEvents({result,runCount:1},0,plan);
+  assert.deepEqual(awards.map(a=>a.amount),[51,50]);
+  assert.equal(awards[0].at,awards[1].at);
+  assert.ok(plan.runs[0].endAt >= plan.runs[0].resultAt + 3800);
+});

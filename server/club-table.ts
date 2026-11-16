@@ -131,7 +131,7 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
           }
           if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
           this.limit(`social:${token}`, 90);
-          const advanced = await this.service.advance();
+          const advanced = await this.advanceTable();
           if (advanced) await this.broadcast(advanced);
           const result = await this.social.send(player, await this.body(request), url.pathname === '/api/chat' ? 'message' : 'reaction');
           if (!result.replayed) await this.broadcastSocial(result.entry);
@@ -238,7 +238,7 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
           error: 'Method not allowed'
         }, 405);
         // Catch overdue work before accepting any new player action.
-        advanced = await this.service.advance();
+        advanced = await this.advanceTable();
         if (request.method === 'GET') return json(await this.snapshot(token, url.searchParams.get('code') || ''));
         const input = await this.body(request);
         if (['stand_up', 'cancel_stand_up', 'set_away'].includes(input.type) && !reactionsEnabled(this.env.APP_ENV)) throw new TableError('This control is not enabled', 403);
@@ -289,7 +289,7 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
           this.limit(`player:${peer.playerId}`, 180);
           const player = await this.authorized(peer);
           if (!player) { socket.close(1008, 'Access expired'); return; }
-          advanced = await this.service.advance();
+          advanced = await this.advanceTable();
           if (['create', 'join'].includes(input.input?.type)) input.input.name = player.name;
           const result = await this.service.execute(peer.playerId, input.input);
           socket.send(JSON.stringify({ protocol: PROTOCOL_VERSION, type: 'command_result', commandId,
@@ -312,6 +312,10 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
         try { await this.maintainSocial(); } catch (error) { console.error('Socket maintenance failed', error); }
       }
     });
+  }
+  private async advanceTable() {
+    const { connected } = await this.presence();
+    return this.service.advance(Date.now(), connected);
   }
   private async presence() {
     const peers = this.ctx.getWebSockets().filter(socket => socket.readyState === WebSocket.OPEN)
@@ -428,7 +432,7 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
         const peer = socket.deserializeAttachment() as Peer;
         if (!peer?.lastSeenAt || peer.lastSeenAt + 15000 <= Date.now()) { try { socket.close(4000, 'Heartbeat expired'); } catch { } }
       }
-      const code = await this.service.advance();
+      const code = await this.advanceTable();
       if (code) await this.broadcast(code);
       try { await this.maintainSocial(); } catch (error) {
         console.error('Social alarm failed', error);
