@@ -1,10 +1,18 @@
 import { REACTIONS } from './reactions.mjs';
-// Small procedural effects: no downloaded samples or external requests.
-export type PokerSound = 'shuffle' | 'deal' | 'board' | 'win' | 'check' | 'call' | 'raise' | 'allin' | 'fold' | keyof typeof REACTIONS;
+const gameSamples = {
+  call: '/sounds/call.wav',
+  check: '/sounds/check.wav',
+  'your-turn': '/sounds/your-turn.wav',
+} as const;
+type GameSample = keyof typeof gameSamples;
+
+export type PokerSound = 'shuffle' | 'deal' | 'board' | 'win' | GameSample | 'raise' | 'allin' | 'fold' | keyof typeof REACTIONS;
 export class PokerAudio {
   private context: AudioContext | null = null;
   private nodes = new Set<AudioScheduledSourceNode>();
+  private samples = new Map<GameSample, Promise<AudioBuffer | null>>();
   enabled = true;
+  constructor(private readonly preloadGameSounds = false) {}
   private generation = 0;
   unlock() {
     if (!this.enabled) return;
@@ -12,6 +20,9 @@ export class PokerAudio {
       const C = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!C) return;
       this.context ??= new C();
+      if (this.preloadGameSounds) {
+        for (const kind of Object.keys(gameSamples) as GameSample[]) void this.loadSample(this.context, kind);
+      }
       if (this.context?.state === 'suspended') void this.context.resume().catch(() => { });
     } catch {/* Audio is optional on browsers without Web Audio. */ }
   }
@@ -32,6 +43,20 @@ export class PokerAudio {
     this.nodes.add(node);
     node.onended = () => this.nodes.delete(node);
   }
+  private loadSample(ctx: AudioContext, kind: GameSample) {
+    let pending = this.samples.get(kind);
+    if (!pending) {
+      pending = fetch(gameSamples[kind]).then(response => {
+        if (!response.ok) throw new Error('Game audio unavailable');
+        return response.arrayBuffer();
+      }).then(bytes => ctx.decodeAudioData(bytes)).catch(() => {
+        this.samples.delete(kind);
+        return null;
+      });
+      this.samples.set(kind, pending);
+    }
+    return pending;
+  }
   play(kind: PokerSound, delayMs = 0) {
     const ctx = this.context;
     if (!this.enabled || !ctx || document.hidden) return;
@@ -45,6 +70,19 @@ export class PokerAudio {
     }
     if (ctx.state !== 'running') return;
     const at = ctx.currentTime + Math.max(0, delayMs) / 1000;
+    if (kind === 'check' || kind === 'call' || kind === 'your-turn') {
+      const generation = this.generation;
+      void this.loadSample(ctx, kind).then(buffer => {
+        if (!buffer || generation !== this.generation || !this.enabled ||
+            document.hidden || ctx.state !== 'running' || ctx.currentTime > at + .35) return;
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(ctx.destination);
+        this.source(src);
+        src.start(Math.max(at, ctx.currentTime));
+      });
+      return;
+    }
     const noise = (time: number, duration: number, frequency: number, volume: number) => {
       const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate),
         data = buffer.getChannelData(0);
@@ -133,16 +171,6 @@ export class PokerAudio {
       tone(at + .06, 620, .065, .035);
     } else if (kind === 'fold') {
       noise(at, .13, 750, .075);
-    } else if (kind === 'check') {
-      // Two dry, low wooden impacts, with a short noisy attack.
-      for (const time of [at, at + .14]) {
-        noise(time, .035, 900, .15);
-        tone(time, 185, .075, .2);
-        tone(time + .002, 370, .035, .06);
-      }
-    } else if (kind === 'call') {
-      tone(at, 750, .085, .045);
-      noise(at + .02, .055, 2700, .025);
     } else if (kind === 'raise') {
       [660, 880, 1100].forEach((f, i) => tone(at + i * .055, f, .09, .035));
     } else if (kind === 'allin') {

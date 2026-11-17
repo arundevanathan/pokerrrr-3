@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { dealPlan, boardPlan, showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack } from './table-presentation.mjs';
 import { PokerAudio } from './poker-audio';
+import { bettingOpportunity } from './client/raise-selection.mjs';
 export function useTableEffects(room: any, audio: PokerAudio | null) {
   const [flow, setFlow] = useState<any>({}),
     [now, setNow] = useState(Date.now());
@@ -115,18 +116,26 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
     }, 70);
     return () => clearInterval(id);
   }, [flow]);
-  useEffect(() => {
+  const turnOpportunity = bettingOpportunity(room);
+  useLayoutEffect(() => {
     if (!room) {
       heard.current = null;
       return;
     }
     const last = heard.current;
-    if (!silence.current && last?.code === room.code) (room.actionEvents || []).filter((e: any) => e.seq > last.seq && e.at > audibleAfter.current).forEach((e: any, i: number) => audio?.play(e.type, i * 75));
+    if (!silence.current && last?.code === room.code) {
+      const actions = (room.actionEvents || []).filter((e: any) => e.seq > last.seq && e.at > audibleAfter.current);
+      actions.forEach((e: any, i: number) => audio?.play(e.type, i * 75));
+      if (turnOpportunity && turnOpportunity !== last.turnOpportunity) {
+        audio?.play('your-turn', actions.length ? (actions.length - 1) * 75 + 145 : 0);
+      }
+    }
     heard.current = {
       code: room.code,
-      seq: room.actionSeq || 0
+      seq: room.actionSeq || 0,
+      turnOpportunity
     };
-  }, [room?.code, room?.actionSeq, audio]);
+  }, [room, turnOpportunity, audio]);
   useEffect(() => {
     const hide = () => {
       if (document.hidden) {

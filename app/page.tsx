@@ -21,7 +21,7 @@ import { isBet } from '../lib/protocol/poker.mjs';
 import { GameHistory } from './game-history';
 import { PlayerLobby, PinSettings } from './player-lobby';
 import { showTestTools } from '../lib/client/environment';
-import { nextRaise, bettingOpportunity } from '../lib/client/raise-selection.mjs';
+import { nextRaise } from '../lib/client/raise-selection.mjs';
 import { preactionValid, resolvePreaction } from '../lib/client/preaction.mjs';
 type Room = any;
 // Temporary identities for local practice; multiplayer identity comes from the server.
@@ -92,9 +92,8 @@ export default function Home() {
     [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const appViewport = useAppViewport(Boolean(room));
   const queuedAction = useRef<{ choice: 'fold' | 'check-fold' | 'check'; player: string; code: string; hand: number; phase: string } | null>(null);
-  const lastTurnAlert = useRef('');
   const audio = useRef<PokerAudio | null>(null);
-  if (!audio.current) audio.current = new PokerAudio();
+  if (!audio.current) audio.current = new PokerAudio(true);
   const socialAudio = useRef<PokerAudio | null>(null);
   if (!socialAudio.current) socialAudio.current = new PokerAudio();
   const effects = useTableEffects(room, audio.current),
@@ -518,10 +517,6 @@ export default function Home() {
       return;
     }
     if (!myTurn || !live || !l || controlsBusy) return;
-    const alertKey = bettingOpportunity(room) || '';
-    if (lastTurnAlert.current !== alertKey) {
-      lastTurnAlert.current = alertKey;
-    }
     if (!queued) return;
     // Consume before sending: rerenders and reconnects must never send it twice.
     queuedAction.current = null;
