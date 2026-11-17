@@ -54,8 +54,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
           startedAt,
           key: handKey
         };
-        if (!silence.current && elapsed < 100) audio?.play('shuffle');
-        for (const f of plan.flights) if (!silence.current && f.at >= elapsed) audio?.play('deal', f.at - elapsed);
+        if (!silence.current && elapsed < 250) audio?.play('deal');
       }
     }
     if (newResult) {
@@ -81,8 +80,11 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
           const delay = timeline.startedAt + event.at - timestamp;
           if (!silence.current && delay >= 0) audio?.play('board', delay);
         }
-        const winDelay = startedAt + run.payoutStart - timestamp;
-        if (!silence.current && winDelay >= 0) audio?.play('win', winDelay);
+      }
+      if (!silence.current) {
+        const awards: { at: number; returned?: boolean }[] = payoutEvents(room, startedAt, plan);
+        const winTimes = new Set(awards.filter(award => !award.returned).map(award => award.at));
+        for (const at of winTimes) if (at >= timestamp) audio?.play('win', at - timestamp);
       }
     } else if (changedBoard && room.board.length && !first) {
       const events = boardPlan(newHand ? 0 : before.boardCount, room.board.length),

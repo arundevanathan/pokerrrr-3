@@ -326,6 +326,12 @@ test('deal animation goes clockwise card by card, including all forty PLO5 cards
   startHand(r, 1000);
   const plan = dealPlan(r);
   assert.equal(plan.flights.length, 40);
+  for (const [game, count] of [['NLH', 2], ['PLO4', 4], ['PLO5', 5]]) {
+    const variant = dealPlan({ ...r, game }, false);
+    assert.equal(variant.duration, 1460);
+    assert.equal(variant.flights.length, count * 8);
+    assert.equal(variant.flights.at(-1).arrival, plan.flights.at(-1).arrival);
+  }
   assert.deepEqual(plan.flights.slice(0, 8).map(f => f.seat), [1, 2, 3, 4, 5, 6, 7, 0]);
   assert.deepEqual(plan.flights.slice(8, 16).map(f => f.round), Array(8).fill(1));
   assert.ok(plan.flights.every((f, i) => !i || f.at > plan.flights[i - 1].at));
