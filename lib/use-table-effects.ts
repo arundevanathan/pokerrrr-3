@@ -76,10 +76,6 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
           key: `${handKey}:run-${run.run}`
         };
         if (run.run === 1) next.board = timeline; else next.board2 = timeline;
-        for (const event of run.events) {
-          const delay = timeline.startedAt + event.at - timestamp;
-          if (!silence.current && delay >= 0) audio?.play('board', delay);
-        }
       }
       if (!silence.current) {
         const awards: { at: number; returned?: boolean }[] = payoutEvents(room, startedAt, plan);
@@ -94,7 +90,6 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
         startedAt: base,
         key: `${handKey}:street`
       };
-      if (!silence.current) for (const event of events) audio?.play('board', base - timestamp + event.at);
     }
     if (newHand || changedBoard || newResult) setFlow((old: any) => newHand ? next : {
       ...old,
@@ -126,7 +121,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
     }
     const last = heard.current;
     if (!silence.current && last?.code === room.code) {
-      const actions = (room.actionEvents || []).filter((e: any) => e.seq > last.seq && e.at > audibleAfter.current);
+      const actions = (room.actionEvents || []).filter((e: any) => e.type !== 'fold' && e.seq > last.seq && e.at > audibleAfter.current);
       actions.forEach((e: any, i: number) => audio?.play(e.type, i * 75));
       if (turnOpportunity && turnOpportunity !== last.turnOpportunity) {
         audio?.play('your-turn', actions.length ? (actions.length - 1) * 75 + 145 : 0);

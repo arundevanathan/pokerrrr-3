@@ -8,7 +8,7 @@ const gameSamples = {
 } as const;
 type GameSample = keyof typeof gameSamples;
 
-export type PokerSound = 'board' | GameSample | 'raise' | 'allin' | 'fold' | keyof typeof REACTIONS;
+export type PokerSound = GameSample | 'raise' | 'allin' | keyof typeof REACTIONS;
 export class PokerAudio {
   private context: AudioContext | null = null;
   private nodes = new Set<AudioScheduledSourceNode>();
@@ -72,7 +72,7 @@ export class PokerAudio {
     }
     if (ctx.state !== 'running') return;
     const at = ctx.currentTime + Math.max(0, delayMs) / 1000;
-    const sample = kind === 'raise' ? 'call' : kind;
+    const sample = kind === 'raise' || kind === 'allin' ? 'call' : kind;
     if (Object.hasOwn(gameSamples, sample)) {
       const generation = this.generation;
       void this.loadSample(ctx, sample as GameSample).then(buffer => {
@@ -164,16 +164,6 @@ export class PokerAudio {
       if (delayMs >= 0) noise(at, .13, 850, .06);
       noise(impact, .055, 1800, .29); tone(impact, 72, .13, .24);
       noise(impact + .012, .09, 300, .15);
-    } else if (kind === 'board') {
-      noise(at, .11, 2400, .1);
-      tone(at + .06, 620, .065, .035);
-    } else if (kind === 'fold') {
-      noise(at, .13, 750, .075);
-    } else if (kind === 'allin') {
-      [440, 660, 880, 1320].forEach((f, i) => {
-        tone(at + i * .07, f, .14, .045);
-        noise(at + i * .07, .05, 2500, .025);
-      });
     }
   }
 }
