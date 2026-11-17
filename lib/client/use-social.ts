@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { PokerClient, type Connection } from './poker-client';
 export type SocialEntry = {
   code: string; id: string; sequence: number; kind: 'message' | 'reaction'; at: number;
-  text?: string; reaction?: string; sender: { key: string; name: string; seat: number | null };
+  own?: boolean; text?: string; reaction?: string; sender: { key: string; name: string; seat: number | null };
   to?: { name: string; seat: number };
 };
 export type SocialRoom = {
@@ -11,91 +11,143 @@ export type SocialRoom = {
   players: { id: string; name: string; seat: number; left?: boolean }[];
   settings: { seats: number };
 };
+type ChatRequest = { code: string; requestId: string; text: string };
+const deliveryUnknown = (error: unknown) => {
+  const status = (error as { status?: number } | null)?.status;
+  return !status || status === 408 || status >= 500;
+};
+
 export function useSocial(room: SocialRoom | null, practice: boolean, connection: Connection, enabled: boolean) {
   const [entries, setEntries] = useState<SocialEntry[]>([]);
   const [bubbles, setBubbles] = useState<SocialEntry[]>([]);
   const [open, setOpenState] = useState(false);
-  const composeBaseline = useRef(0);
   const [draft, setDraft] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyFocus, setHistoryFocus] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
+  const [readError, setReadError] = useState('');
+  const [sendError, setSendError] = useState('');
+  const [unread, setUnread] = useState(0);
   const active = useRef(room);
   const seen = useRef(new Set<string>());
   const inFlight = useRef<string | null>(null);
-  const newestLoad = useRef<{ epoch: string; at: number } | null>(null);
-  const loadedEpoch = useRef<string | null>(null);
-  const latest = useRef(0);
+  const latestLoad = useRef<Promise<void> | null>(null);
+  const olderLoad = useRef<Promise<void> | null>(null);
+  const syncedThrough = useRef<number | null>(null);
+  const historyVisible = useRef(false);
   const epoch = `${room?.code || ''}:${room?.createdAt || ''}:${room?.me || ''}`;
-  const epochRef = useRef(epoch);
+  const generation = useRef(0);
   const local = useRef(practice);
-  useLayoutEffect(() => { active.current = room; epochRef.current = epoch; local.current = practice; }, [room, epoch, practice]);
+  useLayoutEffect(() => { active.current = room; local.current = practice; }, [room, practice]);
   const setOpen = useCallback((value: boolean) => { setOpenState(value); }, []);
-  const retry = useRef<{ code: string; requestId: string; text: string } | null>(null);
+  const retry = useRef<ChatRequest | null>(null);
+  const storedRequestKey = `dunzo-chat-pending:${epoch}`;
+  const storeRequest = (request: ChatRequest, clear = false) => {
+    try {
+      if (!clear) sessionStorage.setItem(storedRequestKey, JSON.stringify(request));
+      else if (JSON.parse(sessionStorage.getItem(storedRequestKey) || 'null')?.requestId === request.requestId) sessionStorage.removeItem(storedRequestKey);
+    } catch { /* In-memory retries remain available if storage is blocked. */ }
+  };
   const merge = useCallback((incoming: SocialEntry[]) => {
-    latest.current = Math.max(latest.current, ...incoming.map(e => e.sequence));
     setEntries(previous => [...new Map([...previous, ...incoming].map(e => [e.sequence, e])).values()].sort((a, b) => a.sequence - b.sequence));
   }, []);
-  const receive = useCallback((entry: SocialEntry) => {
+  const receive = useCallback((entry: SocialEntry, showBubble = true, notify = true) => {
     const current = active.current;
     if (!enabled || !current || entry.code !== current.code || seen.current.has(entry.id)) return;
     seen.current.add(entry.id);
     merge([entry]);
-    if (entry.kind === 'message' && !document.hidden && Math.abs(Date.now() - entry.at) < 10000) {
+    if (entry.kind !== 'message') return;
+    if (notify && !entry.own && !historyVisible.current) setUnread(count => count + 1);
+    if (showBubble && !document.hidden) {
       setBubbles(previous => [...previous.filter(e => e.sender.key !== entry.sender.key), { ...entry, at: Date.now() }].slice(-8));
     }
   }, [enabled, merge]);
-  const load = useCallback(async (before?: string, background = false) => {
+
+  const load = useCallback((before?: string) => {
     const current = active.current;
-    if (!enabled || !current || local.current) return;
-    const started = epochRef.current;
-    if (background && newestLoad.current?.epoch === started && Date.now() - newestLoad.current.at < 5000) return;
-    if (!before) newestLoad.current = { epoch: started, at: Date.now() };
-    if (!background) setLoading(true);
-    try {
-      const watermark = latest.current;
-      const hasBaseline = loadedEpoch.current === started;
-      let data = await PokerClient.auth(`chat?code=${encodeURIComponent(current.code)}${before ? `&before=${before}` : ''}`);
-      const incoming: SocialEntry[] = [...data.entries];
-      // Fill reconnect gaps even when more than one page arrived while asleep.
-      while (!before && watermark > 0 && data.nextCursor && data.entries[0]?.sequence > watermark) {
-        if (started !== epochRef.current) return;
-        data = await PokerClient.auth(`chat?code=${encodeURIComponent(current.code)}&before=${data.nextCursor}`);
-        incoming.push(...data.entries);
+    if (!enabled || !current || local.current) return Promise.resolve();
+    const started = generation.current;
+    const pending = before ? olderLoad : latestLoad;
+    if (pending.current) return pending.current;
+    if (before || syncedThrough.current === null) setLoading(true);
+    const query = (cursor?: string) => PokerClient.auth(
+      `chat?code=${encodeURIComponent(current.code)}${cursor ? `&before=${encodeURIComponent(cursor)}` : ''}`
+    );
+    const task = (async () => {
+      try {
+        const watermark = syncedThrough.current;
+        let page = await query(before);
+        if (started !== generation.current) return;
+        const head = page.entries.at(-1)?.sequence ?? 0;
+        const serverTime = page.serverTime;
+        const incoming: SocialEntry[] = [...page.entries];
+        // Live updates can arrive out of order. Only a completed history sync
+        // can advance the watermark used for reconnect backfill.
+        while (!before && watermark !== null && page.nextCursor && page.entries[0]?.sequence > watermark + 1) {
+          page = await query(page.nextCursor);
+          if (started !== generation.current) return;
+          incoming.push(...page.entries);
+        }
+        if (before || watermark === null) setCursor(page.nextCursor);
+        if (!before) syncedThrough.current = Math.max(watermark ?? 0, head);
+        for (const entry of incoming.sort((a, b) => a.sequence - b.sequence)) {
+          if (!before && watermark !== null && entry.sequence > watermark) {
+            receive(entry, typeof serverTime === 'number' && serverTime - entry.at < 15000);
+          }
+          seen.current.add(entry.id);
+        }
+        merge(incoming);
+        setReadError('');
+      } catch (e) {
+        if (started === generation.current) setReadError((e as Error).message);
       }
-      if (started !== epochRef.current) return;
-      for (const entry of incoming) {
-        if (background && hasBaseline && entry.sequence > watermark) receive(entry);
-        seen.current.add(entry.id);
-      }
-      merge(incoming);
-      loadedEpoch.current = started;
-      setCursor(previous => before || watermark === 0 ? data.nextCursor : previous === null || data.nextCursor === null ? null : String(Math.min(Number(previous), Number(data.nextCursor))));
-      if (!background) setError('');
-    } catch (e) { if (!background && started === epochRef.current) setError((e as Error).message); }
-    finally { if (!background && started === epochRef.current) setLoading(false); }
+    })().finally(() => {
+      if (pending.current !== task) return;
+      pending.current = null;
+      if (started === generation.current && !latestLoad.current && !olderLoad.current) setLoading(false);
+    });
+    pending.current = task;
+    return task;
   }, [enabled, merge, receive]);
-  useEffect(() => {
-    // Reset the external game's conversation on identity/session changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEntries([]); setDraft(''); setHistoryOpen(false); setHistoryFocus(null); setSending(false); inFlight.current = null; latest.current = 0; setBubbles([]); setOpen(false); setCursor(null); setError('');
+  const refresh = useCallback(() => load(), [load]);
+  useLayoutEffect(() => {
+    generation.current++;
+    setEntries([]); setDraft(''); historyVisible.current = false; setHistoryOpen(false); setHistoryFocus(null);
+    setSending(false); inFlight.current = null; syncedThrough.current = null; latestLoad.current = null; olderLoad.current = null;
+    setBubbles([]); setOpen(false); setCursor(null); setLoading(false); setReadError(''); setSendError(''); setUnread(0);
     seen.current.clear(); retry.current = null;
-    void load();
-  }, [epoch, load, setOpen]);
+    if (room?.code && !practice) {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(storedRequestKey) || 'null') as ChatRequest | null;
+        if (saved?.code === room.code && typeof saved.text === 'string' && typeof saved.requestId === 'string') {
+          retry.current = saved;
+          setDraft(saved.text);
+          setSendError('Delivery unconfirmed. Retry to check the previous send.');
+        }
+      } catch { /* A malformed or inaccessible saved draft is ignored. */ }
+    }
+  }, [epoch, setOpen]);
+  useEffect(() => { void refresh(); }, [epoch, refresh]);
   useEffect(() => {
-    // Synchronize history when the external WebSocket connection recovers.
-    if (connection === 'connected') void load(undefined, true);
-  }, [connection, load]);
+    if (connection === 'connected') void refresh();
+  }, [connection, refresh]);
   useEffect(() => {
-    if (!enabled || practice || !room?.code || room.phase === 'closed') return;
-    const refresh = () => { if (!document.hidden && navigator.onLine) void load(undefined, true); };
-    const timer = setInterval(refresh, 8000);
-    document.addEventListener('visibilitychange', refresh);
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
-  }, [enabled, practice, room?.code, room?.phase, load]);
+    if (room?.phase === 'closed') void refresh();
+  }, [room?.phase, refresh]);
+  useEffect(() => {
+    if (!enabled || practice || !room?.code || (room.phase === 'closed' && !historyOpen)) return;
+    const sync = () => { if (!document.hidden && navigator.onLine) void refresh(); };
+    const timer = setInterval(sync, 8000);
+    window.addEventListener('online', sync);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('online', sync);
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, [enabled, practice, room?.code, room?.phase, historyOpen, refresh]);
   useEffect(() => {
     const timer = setInterval(() => setBubbles(previous => previous.filter(e => Date.now() - e.at < 5000)), 500);
     const hide = () => { if (document.hidden) setBubbles([]); };
@@ -107,31 +159,55 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
     if (!current) return;
     const me = current.players.find((p) => p.id === current.me);
     receive({ code: current.code, id: crypto.randomUUID(), sequence: Date.now(), at: Date.now(),
-      kind: 'message', sender: { key: current.me, name: me?.name || 'You', seat: me && !me.left ? me.seat : null }, ...data });
+      kind: 'message', own: true, sender: { key: current.me, name: me?.name || 'You', seat: me && !me.left ? me.seat : null }, ...data });
   }
   async function send(text: string) {
     const current = active.current;
     if (!current || !enabled || current.phase === 'closed' || inFlight.current || !text.trim()) return false;
-    const started = epochRef.current;
-    setSending(true); setError('');
-    const request = retry.current && retry.current.code === current.code && retry.current.text === text.trim() ? retry.current
+    const started = generation.current;
+    const request = retry.current?.text === text.trim() ? retry.current
       : { code: current.code, requestId: crypto.randomUUID(), text: text.trim() };
     retry.current = request;
     inFlight.current = request.requestId;
+    if (!practice) storeRequest(request);
+    setSending(true); setSendError('');
     try {
       if (practice) practiceEntry({ text: request.text });
       else {
-        const result = await PokerClient.auth('chat', request);
-        if (started === epochRef.current) receive(result.entry);
+        let result;
+        try { result = await PokerClient.auth('chat', request); }
+        catch (e) {
+          if (!deliveryUnknown(e) || !navigator.onLine || started !== generation.current) throw e;
+          // The first response may have been lost after the write committed.
+          result = await PokerClient.auth('chat', request);
+        }
+        if (!result?.entry) throw new Error('Chat confirmation unavailable');
+        if (started === generation.current) receive(result.entry, !result.replayed, false);
+        storeRequest(request, true);
       }
       if (retry.current?.requestId === request.requestId) retry.current = null;
-      return true;
-    } catch (e) { if (started === epochRef.current) setError(`${(e as Error).message}. Send again to retry.`); return false; }
-    finally { if (inFlight.current === request.requestId) inFlight.current = null; if (started === epochRef.current) setSending(false); }
+      return started === generation.current;
+    } catch (e) {
+      const error = e as Error;
+      if (!deliveryUnknown(error)) storeRequest(request, true);
+      if (started === generation.current) setSendError(deliveryUnknown(error)
+        ? 'Delivery unconfirmed. Retry to check the previous send.'
+        : error.message);
+      return false;
+    } finally {
+      if (inFlight.current === request.requestId) inFlight.current = null;
+      if (started === generation.current) setSending(false);
+    }
   }
   function openHistory(id: string | null = null) {
-    setOpen(false); setHistoryFocus(id); setHistoryOpen(true);
+    setOpen(false); setHistoryFocus(id); historyVisible.current = true; setHistoryOpen(true); setUnread(0);
+    void refresh();
   }
-  return { entries, bubbles, open, setOpen, composeBaseline, draft, setDraft, historyOpen, setHistoryOpen, historyFocus, openHistory, cursor, loading, sending, error, receive, send,
-    loadMore: () => cursor ? load(cursor) : load(), practiceEntry };
+  function closeHistory() {
+    historyVisible.current = false;
+    setHistoryOpen(false);
+  }
+  return { entries, bubbles, open, setOpen, draft, setDraft, historyOpen, closeHistory, historyFocus, openHistory,
+    cursor, loading, sending, readError, sendError, unread, receive, send, refresh,
+    loadMore: () => cursor ? load(cursor) : Promise.resolve(), practiceEntry };
 }

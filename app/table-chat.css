@@ -39,3 +39,6 @@
 .chat-back { min-height: 44px; flex: 0 0 auto; border: 0; border-top: 1px solid #b59b6440; background: #243a2d; color: #f4d294; }
 .chat-history > header, .chat-turn { flex-shrink: 0; }
 .chat-history:focus-within { outline: 1px solid #dfc58d; }
+
+.chat-unread { position: absolute; top: 3px; right: 5px; color: #ffe16a; font-size: 18px; line-height: 1; }
+.chat-history-actions { display: flex; gap: 4px; }

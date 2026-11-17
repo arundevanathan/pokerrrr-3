@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { MessageCircle, Send, X, Maximize2 } from 'lucide-react';
+import { MessageCircle, Send, X, Maximize2, RefreshCw } from 'lucide-react';
 import { reactionDefinition } from '../lib/reactions.mjs';
 import { seatPosition } from '../lib/table-presentation.mjs';
 import { type SocialRoom, type useSocial } from '../lib/client/use-social';
@@ -10,11 +10,11 @@ type Social = ReturnType<typeof useSocial>;
 export function ChatButton({ social, readOnly = false }: { social: Social; readOnly?: boolean }) {
   return <button className="icon-button chat-toggle" aria-label="Write a message" aria-expanded={social.open} onClick={() => {
     if (readOnly) { social.openHistory(); return; }
-    social.composeBaseline.current = window.visualViewport?.height || window.innerHeight;
     flushSync(() => social.setOpen(true));
     document.getElementById('chat-message')?.focus();
   }}>
     <MessageCircle size={21} />
+    {social.unread > 0 && <span className="chat-unread" aria-label="Unread chat">•</span>}
   </button>;
 }
 export function SpeechBubbles({ room, social }: { room: SocialRoom; social: Social }) {
@@ -37,7 +37,7 @@ export function ChatDrawer({ room, social, myTurn }: { room: SocialRoom; social:
   useLayoutEffect(() => { if (social.open) input.current?.focus(); }, [social.open]);
   useLayoutEffect(() => {
     if (!historyOpen) return;
-    history.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    history.current?.querySelector<HTMLButtonElement>('[aria-label="Close game chat"]')?.focus();
     return () => { document.querySelector<HTMLButtonElement>('.chat-toggle')?.focus(); };
   }, [historyOpen]);
   const scroll = useRef<HTMLDivElement>(null);
@@ -49,7 +49,7 @@ export function ChatDrawer({ room, social, myTurn }: { room: SocialRoom; social:
   useEffect(() => {
     if (!social.open && !historyOpen) return;
     const escape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { social.setOpen(false); social.setHistoryOpen(false); }
+      if (e.key === 'Escape') { social.setOpen(false); social.closeHistory(); }
       if (e.key === 'Tab' && historyOpen) {
         const buttons = [...(history.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])];
         const first = buttons[0], last = buttons.at(-1);
@@ -63,25 +63,13 @@ export function ChatDrawer({ room, social, myTurn }: { room: SocialRoom; social:
   useLayoutEffect(() => {
     if (historyOpen && social.historyFocus) document.getElementById(`chat-entry-${social.historyFocus}`)?.scrollIntoView({ block: 'center' });
   }, [historyOpen, social.historyFocus]);
-  // Native keyboard dismissal blurs the input on some phones but only resizes on
-  // others. Wait until it has actually opened before watching for its dismissal.
-  useEffect(() => {
-    if (!social.open || !window.visualViewport) return;
-    const viewport = window.visualViewport;
-    const baseline = social.composeBaseline.current || Math.max(window.innerHeight, document.documentElement.clientHeight);
-    let keyboardSeen = false;
-    const resize = () => {
-      if (baseline - viewport.height > 140) keyboardSeen = true;
-      else if (keyboardSeen) { input.current?.blur(); social.setOpen(false); }
-    };
-    viewport.addEventListener('resize', resize);
-    resize();
-    return () => viewport.removeEventListener('resize', resize);
-  }, [social.open, social.setOpen]);
-  if (!social.open && !historyOpen) return social.error ? <button className="chat-retry" onClick={() => { flushSync(() => social.setOpen(true)); input.current?.focus(); }}>Message not sent · Tap to retry</button> : null;
+  if (!social.open && !historyOpen && social.sending) return <p className="chat-error" role="status">Sending message…</p>;
+  if (!social.open && !historyOpen) return social.sendError && room.phase !== 'closed' ? <button className="chat-retry" onClick={() => {
+    flushSync(() => social.setOpen(true)); input.current?.focus();
+  }}>{social.sendError}</button> : null;
   const content = <aside ref={historyOpen ? history : undefined} className={historyOpen ? 'chat-drawer chat-history' : 'chat-composer'} role={historyOpen ? 'dialog' : 'region'} aria-modal={historyOpen || undefined} aria-label={historyOpen ? 'Game chat history' : 'Write a message'}>
-    {historyOpen && <><header><div><h2>Game chat</h2><small>{room.phase === 'closed' ? 'Read-only · Game ended' : 'This game only'}</small></div><button className="icon-button" aria-label="Close game chat" onClick={() => social.setHistoryOpen(false)}><X size={20} /></button></header>
-    {myTurn && <button className="chat-turn" onClick={() => social.setHistoryOpen(false)}>Your turn · Back to game</button>}
+    {historyOpen && <><header><div><h2>Game chat</h2><small>{room.phase === 'closed' ? 'Read-only · Game ended' : 'This game only'}</small></div><div className="chat-history-actions"><button className="icon-button" aria-label="Refresh game chat" onClick={() => void social.refresh()}><RefreshCw size={17} /></button><button className="icon-button" aria-label="Close game chat" onClick={() => social.closeHistory()}><X size={20} /></button></div></header>
+    {myTurn && <button className="chat-turn" onClick={() => social.closeHistory()}>Your turn · Back to game</button>}
     <div className="chat-messages" ref={scroll} onScroll={() => { const el = scroll.current; if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64; }}>
       {social.cursor && <button className="chat-older" disabled={social.loading} onClick={async () => {
         const el = scroll.current, height = el?.scrollHeight || 0, top = el?.scrollTop || 0;
@@ -94,8 +82,9 @@ export function ChatDrawer({ room, social, myTurn }: { room: SocialRoom; social:
         <div><b>{entry.sender.name}</b><time dateTime={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></div>
         <p>{entry.text}</p>
       </article>)}
-    </div><button className="chat-back" onClick={() => social.setHistoryOpen(false)}>Back to game</button></>}
-    {social.error && <p className="chat-error" role="status">{social.error}<button onClick={() => void social.loadMore()}>Refresh</button></p>}
+    </div><button className="chat-back" onClick={() => social.closeHistory()}>Back to game</button></>}
+    {historyOpen && social.readError && <p className="chat-error" role="status">{social.readError}</p>}
+    {!historyOpen && social.sendError && <p className="chat-error" role="status">{social.sendError}</p>}
     {!historyOpen && room.phase !== 'closed' && <form className="chat-compose" onSubmit={async e => { e.preventDefault(); const sentDraft = draft; const request = social.send(sentDraft); input.current?.blur(); social.setOpen(false); if (await request) setDraft(current => current === sentDraft ? '' : current); }}>
       <button type="button" className="chat-expand" onPointerDown={e => e.preventDefault()} aria-label="Expand chat history" onClick={() => { input.current?.blur(); social.openHistory(); }}><Maximize2 size={19} /></button>
       <label className="sr-only" htmlFor="chat-message">Message</label><input ref={input} id="chat-message" value={draft} onChange={e => setDraft(e.target.value)} maxLength={500} readOnly={social.sending} placeholder="Message the table…" autoComplete="off" enterKeyHint="send" />

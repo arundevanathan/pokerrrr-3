@@ -93,3 +93,107 @@ test('all eight reactions persist, broadcast their own effect and leave poker un
   assert.deepEqual((await f.social.history('ABC234')).entries.map(e => e.reaction), catalogue);
   assert.deepEqual(await f.storage.get('room:ABC234'), f.room);
 });
+
+async function clientFixture(auth, stored = new Map()) {
+  const { readFileSync } = await import('node:fs');
+  const { default: ts } = await import('typescript');
+  const source = readFileSync(new URL('../lib/client/use-social.ts', import.meta.url), 'utf8');
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  });
+  let position = 0;
+  const slots = [], layouts = [], effects = [];
+  const effect = queue => (run, deps) => {
+    const i = position++;
+    if (!slots[i] || deps.some((value, k) => !Object.is(value, slots[i][k]))) {
+      slots[i] = deps;
+      queue.push(run);
+    }
+  };
+  const react = {
+    useState(value) {
+      const slot = slots[position++] ??= { value };
+      return [slot.value, update => { slot.value = typeof update === 'function' ? update(slot.value) : update; }];
+    },
+    useRef(current) { return slots[position++] ??= { current }; },
+    useCallback(run, deps) {
+      const i = position++;
+      if (!slots[i] || deps.some((value, k) => !Object.is(value, slots[i].deps[k]))) slots[i] = { run, deps };
+      return slots[i].run;
+    },
+    useLayoutEffect: effect(layouts), useEffect: effect(effects)
+  };
+  const exports = {}, eventTarget = { hidden: false, addEventListener() {}, removeEventListener() {} };
+  const sessionStorage = { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) };
+  const run = new Function('exports', 'require', 'window', 'document', 'navigator', 'sessionStorage', 'setInterval', outputText);
+  run(exports, name => name === 'react' ? react : { PokerClient: { auth } }, eventTarget, eventTarget, { onLine: true }, sessionStorage, () => 0);
+  const room = { code: 'ABC234', me: 'alice', createdAt: 1, phase: 'flop' };
+  return {
+    render(connection = 'connected', phase = room.phase) {
+      position = 0;
+      const chat = exports.useSocial({ ...room, phase }, false, connection, true);
+      for (const effect of layouts.splice(0)) effect();
+      for (const effect of effects.splice(0)) effect();
+      return chat;
+    }
+  };
+}
+
+const flushClient = () => new Promise(resolve => setImmediate(resolve));
+const clientEntry = sequence => ({ code: 'ABC234', sequence, id: String(sequence), sender: { key: 'peer' }, kind: 'message', at: 1000 });
+
+test('chat client fills missing pages after a newer socket entry and refreshes after closure', async () => {
+  let head = 10;
+  const reads = [];
+  const client = await clientFixture(async path => {
+    const before = new URL(path, 'https://dunzo.test').searchParams.get('before');
+    reads.push(before);
+    const end = before ? Number(before) - 1 : head;
+    const start = Math.max(1, end - 49);
+    return {
+      entries: Array.from({ length: end - start + 1 }, (_, i) => clientEntry(start + i)),
+      nextCursor: start > 1 ? String(start) : null, serverTime: 20000
+    };
+  });
+  client.render();
+  await flushClient();
+  head = 90;
+  const disconnected = client.render('reconnecting');
+  disconnected.receive(clientEntry(90));
+  await disconnected.refresh();
+  assert.deepEqual(client.render('reconnecting').entries.map(e => e.sequence), Array.from({ length: 90 }, (_, i) => i + 1));
+  assert.deepEqual(reads, [null, null, '41']);
+
+  head = 91;
+  client.render('reconnecting', 'closed');
+  await flushClient();
+  assert.equal(client.render('reconnecting', 'closed').entries.at(-1).sequence, 91);
+});
+
+test('chat client retries an uncertain send with the same ID across reload and keeps read errors separate', async () => {
+  const sent = [], stored = new Map();
+  let available = false;
+  const auth = async (_path, request) => {
+    if (!request) return { entries: [], nextCursor: null };
+    sent.push(request);
+    if (!available) throw new Error('Response lost');
+    return { entry: clientEntry(1), replayed: true };
+  };
+  const first = await clientFixture(auth, stored);
+  first.render();
+  const chat = first.render();
+  assert.equal(await chat.send('Hello'), false);
+  await chat.refresh();
+  assert.match(first.render().sendError, /Delivery unconfirmed/);
+  assert.equal(sent.length, 2);
+  assert.equal(sent[0].requestId, sent[1].requestId);
+
+  available = true;
+  const reloaded = await clientFixture(auth, stored);
+  reloaded.render();
+  const restored = reloaded.render();
+  assert.equal(restored.draft, 'Hello');
+  assert.equal(await restored.send(restored.draft), true);
+  assert.equal(sent[2].requestId, sent[0].requestId);
+  assert.equal(stored.size, 0);
+});

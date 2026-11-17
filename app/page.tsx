@@ -481,7 +481,7 @@ export default function Home() {
       if (!await send('set_away', { away: true })) return;
     }
     social.setOpen(false);
-    social.setHistoryOpen(false);
+    social.closeHistory();
     demo.current = null;
     current.current = null;
     setRoom(null);

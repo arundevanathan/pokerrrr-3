@@ -1,5 +1,5 @@
 import { resetStagingHistory } from '../lib/staging-history.mjs';
-import { historyViewerKey } from '../lib/game-history.mjs';
+import { historyPlayerKey, historyViewerKey } from '../lib/game-history.mjs';
 import { DurableObject } from 'cloudflare:workers';
 import { TableService, TableError, nextDeadline } from './table-service.mjs';
 import { PlayerAuth, sessionCookie } from './player-auth.mjs';
@@ -89,8 +89,9 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
   fetch(request: Request) {
     return this.serial(async () => {
       let advanced: string | null = null;
+      const url = new URL(request.url);
+      const isChat = url.pathname === '/api/chat';
       try {
-        const url = new URL(request.url);
         if (url.pathname === '/api/players' && request.method === 'GET') return json({
           players: this.auth.players()
         });
@@ -125,16 +126,27 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
         }
         if (['/api/reactions', '/api/chat'].includes(url.pathname)) {
           if (!reactionsEnabled(this.env.APP_ENV)) return json({ error: 'Social features are not enabled' }, 404);
-          if (url.pathname === '/api/chat' && request.method === 'GET') {
+          if (isChat && request.method === 'GET') {
             this.limit(`chat-read:${token}`, 120);
-            return json(await this.social.history(url.searchParams.get('code') || '', url.searchParams.get('before')));
+            const history = await this.social.history(url.searchParams.get('code') || '', url.searchParams.get('before'));
+            const viewerKey = await historyPlayerKey(token);
+            return json({
+              ...history,
+              entries: history.entries.map(entry => ({ ...entry, own: entry.sender.key === viewerKey })),
+              serverTime: Date.now()
+            });
           }
           if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
           this.limit(`social:${token}`, 90);
-          const advanced = await this.advanceTable();
-          if (advanced) await this.broadcast(advanced);
-          const result = await this.social.send(player, await this.body(request), url.pathname === '/api/chat' ? 'message' : 'reaction');
-          if (!result.replayed) await this.broadcastSocial(result.entry);
+          if (!isChat) {
+            const advanced = await this.advanceTable();
+            if (advanced) await this.broadcast(advanced);
+          }
+          const result = await this.social.send(player, await this.body(request), isChat ? 'message' : 'reaction');
+          if (!result.replayed) {
+            if (isChat) this.ctx.waitUntil(this.serial(() => this.broadcastSocial(result.entry, token)));
+            else await this.broadcastSocial(result.entry);
+          }
           return json({ ...result, serverTime: Date.now() });
         }
         if (['/api/history', '/api/settlement'].includes(url.pathname) && request.method === 'GET') {
@@ -267,7 +279,9 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
       } finally {
         if (advanced) await this.broadcast(advanced);
         // Optional effects cannot turn a successful poker command into an error.
-        try { await this.maintainSocial(); } catch (error) { console.error('Social maintenance failed', error); }
+        if (!isChat) {
+          try { await this.maintainSocial(); } catch (error) { console.error('Social maintenance failed', error); }
+        }
       }
     });
   }
@@ -395,11 +409,11 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
       } catch { /* A disconnected spectator must not fail an accepted reaction. */ }
     }
   }
-  private async broadcastSocial(entry: Record<string, unknown>) {
+  private async broadcastSocial(entry: Record<string, unknown>, senderId?: string) {
     for (const socket of this.ctx.getWebSockets()) {
       try {
         const peer = socket.deserializeAttachment() as Peer;
-        if (peer && await this.authorized(peer)) socket.send(JSON.stringify({ protocol: PROTOCOL_VERSION, type: 'social', entry }));
+        if (peer && await this.authorized(peer)) socket.send(JSON.stringify({ protocol: PROTOCOL_VERSION, type: 'social', entry: { ...entry, own: peer.playerId === senderId } }));
       } catch { /* Delivery is best effort; reconnect restores durable history. */ }
     }
   }
