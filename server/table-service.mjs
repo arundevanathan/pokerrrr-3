@@ -75,7 +75,8 @@ export class TableService {
       for (const hand of room.history.filter(h => h.number > (previous?.completed || 0))) {
         await tx.put(`hand:${room.code}:${String(hand.number).padStart(10, '0')}`, {
           ...hand,
-          completedAt: room.showdownAt
+          completedAt: room.showdownAt,
+          ...(room.handAudit?.number === hand.number && { audit: room.handAudit })
         });
       }
     }

@@ -420,3 +420,35 @@ test('termination and pending seat actions survive restart, alarm closes and arc
   await recovered.advance(saved.payoutFinishedAt + 1);
   assert.deepEqual(await f.storage.get(`session:${f.code}`), archived);
 });
+
+test('completed hands archive starting stacks, private dealt cards and timestamped betting', async () => {
+  const { storage, service, players, code, send } = await fixture(3);
+  const startedAt = 10000;
+  const opened = (await send(players[0], 'deal', {}, startedAt)).snapshot;
+  const raw = await storage.get(`room:${code}`);
+  assert.ok(!('handAudit' in opened), 'Player snapshots never include the private audit');
+  assert.deepEqual(raw.handAudit.players.map(player => player.startingStack), [1000, 1000, 1000]);
+  assert.deepEqual(raw.handAudit.players.map(player => player.seat), [0, 1, 2]);
+  assert.equal(raw.handAudit.startedAt, startedAt);
+  assert.deepEqual(raw.handAudit.blinds.map(blind => blind.amount), [5, 10]);
+  for (const player of raw.handAudit.players) {
+    assert.deepEqual(player.holeCards, raw.players.find(seat => seat.id === player.playerId).cards);
+  }
+
+  const east = raw.turn;
+  const firstAt = startedAt + raw.dealDuration + 1;
+  const first = (await send(east, 'fold', {}, firstAt)).snapshot;
+  assert.ok(!('handAudit' in first));
+  const next = (await storage.get(`room:${code}`)).turn;
+  const final = (await send(next, 'fold', {}, firstAt + 1)).snapshot;
+  assert.equal(final.phase, 'showdown');
+  assert.ok(!('audit' in final.history[0]));
+  assert.ok(!('handAudit' in await service.snapshot(players[1], code)));
+  const saved = await storage.get(`hand:${code}:0000000001`);
+  assert.deepEqual(saved.audit.players, raw.handAudit.players, 'Folded cards survive in the server archive');
+  assert.deepEqual(saved.audit.actions.map(({ playerId, type, street, at, chipsAdded, timedOut }) =>
+    [playerId, type, street, at, chipsAdded, timedOut]), [
+    [east, 'fold', 'preflop', firstAt, 0, false],
+    [next, 'fold', 'preflop', firstAt + 1, 0, false]
+  ]);
+});
