@@ -1,5 +1,5 @@
 import { historyRange, aggregateGames, suggestedPayments, householdPair, historyPlayerKey, publicHistory } from '../lib/game-history.mjs';
-import { newRoom, command, view, tick, legal, bettingDecision } from '../lib/poker.mjs';
+import { newRoom, command, view, tick, legal, bettingDecision, isBustedSeat } from '../lib/poker.mjs';
 import { parseCommand, playerToken, roomCode } from '../lib/protocol/poker.mjs';
 export class TableError extends Error {
   constructor(message, status = 400, snapshot = undefined) {
@@ -12,10 +12,12 @@ const requireState = (condition, message, status = 409) => {
   if (!condition) throw new TableError(message, status);
 };
 // One Durable Object alarm represents the earliest persisted table deadline.
-export function nextDeadline(room) {
+export function nextDeadline(room, checkBustedSeats = true) {
   if (!room || room.phase === 'closed') return null;
   const departure = room.phase === 'showdown' && room.players.some(p => p.pendingSeatAction === 'leave') ? room.payoutFinishedAt : null;
-  const deadlines = [departure, room.sessionEndsAt, room.deadline, room.phase === 'runout_vote' ? room.runVote?.deadline : null, room.phase === 'showdown' ? room.terminationPending ? room.payoutFinishedAt : !room.paused ? room.nextDealAt : null : null].filter(Number.isFinite);
+  const bustedSeatCheck = checkBustedSeats && room.phase === 'showdown' && !room.terminationPending &&
+    room.bustedSeatsCheckedHand !== room.completed && room.players.some(isBustedSeat) ? room.payoutFinishedAt : null;
+  const deadlines = [departure, bustedSeatCheck, room.sessionEndsAt, room.deadline, room.phase === 'runout_vote' ? room.runVote?.deadline : null, room.phase === 'showdown' ? room.terminationPending ? room.payoutFinishedAt : !room.paused ? room.nextDealAt : null : null].filter(Number.isFinite);
   return deadlines.length ? Math.min(...deadlines) : null;
 }
 async function digest(value) {
@@ -303,7 +305,7 @@ export class TableService {
         room = structuredClone(previous);
       if (tick(room, now, true, connected)) await this.save(tx, previous, room);
   else {
-        const deadline = nextDeadline(room);
+        const deadline = nextDeadline(room, Boolean(connected));
         if (deadline !== null) await tx.setAlarm(Math.max(now + 1, deadline));
   else await tx.deleteAlarm();
       }

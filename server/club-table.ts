@@ -239,7 +239,8 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
             lastSeenAt: Date.now(),
             cookie: sessionCookie(this.auth.token(request), false).split(';')[0]
           });
-          await this.broadcast();
+          advanced = await this.advanceTable();
+          if (!advanced) await this.broadcast();
           return new Response(null, {
             status: 101,
             webSocket: pair[0]
@@ -311,7 +312,10 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
           if (advanced !== result.snapshot.code) await this.broadcast(result.snapshot.code);
         } else if (input.type === 'ping') {
           socket.send(JSON.stringify({ type: 'pong', protocol: PROTOCOL_VERSION }));
-          if (!wasConnected) await this.broadcast();
+          if (!wasConnected) {
+            advanced = await this.advanceTable();
+            if (!advanced) await this.broadcast();
+          }
         } else if (input.type === 'resync') await this.sendState(socket);
         else throw new TableError('Unknown message', 400);
       } catch (error) {
@@ -437,7 +441,11 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
   }
   webSocketClose(socket: WebSocket, code: number) {
     try { socket.close(code); } catch { }
-    return this.serial(async () => { await this.broadcast(); await this.maintainSocial(); });
+    return this.serial(async () => {
+      const advanced = await this.advanceTable();
+      await this.broadcast(advanced || undefined);
+      await this.maintainSocial();
+    });
   }
   webSocketError(socket: WebSocket) { return this.webSocketClose(socket, 1011); }
   alarm() {

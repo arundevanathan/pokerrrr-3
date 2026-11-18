@@ -183,3 +183,44 @@ test('a signed-in spectator can extend a running game once per command', async (
     /No running session timer/
   );
 });
+
+test('offline busted seats stand up after two further payouts, with reconnect and reload protection', () => {
+  const room = fixture();
+  const busted = room.players[0];
+  busted.stack = 0;
+  room.paused = true;
+  room.phase = 'showdown';
+  room.payoutFinishedAt = 12000;
+  room.completed = 4;
+  const offline = new Set([ids[1]]);
+  const online = new Set(ids);
+  tick(room, 12000, false, offline);
+  assert.equal(busted.bustedOfflineSinceHand, 4);
+  assert.equal(nextDeadline(room), null);
+
+  room.completed++;
+  room.payoutFinishedAt += 1000;
+  tick(room, 13000, false, offline);
+  assert.equal(busted.left, false);
+  tick(room, 13001, false, online);
+  assert.equal(busted.bustedOfflineSinceHand, undefined);
+  tick(room, 13002, false, offline);
+  assert.equal(busted.bustedOfflineSinceHand, 5);
+
+  room.completed += 2;
+  room.payoutFinishedAt = 15000;
+  assert.equal(nextDeadline(room), 15000);
+  tick(room, 14999, false, offline);
+  assert.equal(busted.left, false);
+  const saved = structuredClone(room);
+  command(saved, busted.id, { type: 'rebuy', amount: 500 }, 14999);
+  tick(saved, 15000, false, offline);
+  assert.equal(saved.players[0].left, false);
+  assert.equal(saved.players[0].bustedOfflineSinceHand, undefined);
+  tick(room, 15000, false, offline);
+  assert.equal(busted.left, true);
+  assert.equal(busted.cashout, 0);
+  assert.equal(busted.buyins, 1000);
+  tick(room, 15001, false, offline);
+  assert.equal(busted.left, true);
+});
