@@ -43,7 +43,8 @@ export function PlayerLobby({
     setPin('');
     await onLogin(selected, entered);
   }
-  return <section className="setup">
+  const launching = !loading && Boolean(player) && !activeGame;
+  return <section className={launching ? "setup game-launch" : "setup"}>
 
     {loading ? <p role="status">Loading your table…</p> : !player ? <>
 
@@ -73,7 +74,7 @@ export function PlayerLobby({
 
       {activeGame ? <p>{activeGame.players.map((p: any) => p.name).join(' · ') || 'Waiting for players'}<br />{activeGame.settings.sb} / {activeGame.settings.bb} blinds</p> : null}
 
-      <form onSubmit={async e => {
+      <form className={launching ? "game-launch-fields" : undefined} onSubmit={async e => {
         e.preventDefault();
         await onOpen({
           bb,

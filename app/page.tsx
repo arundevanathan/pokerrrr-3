@@ -500,6 +500,19 @@ export default function Home() {
     setError('');
     autoResume.current = false;
   }
+  function closeTablePanel() {
+    setConfirm('');
+    if (finalRankings) void exit();
+    else setPanel('');
+  }
+  useEffect(() => {
+    if (!finalRankings) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) closeTablePanel();
+    };
+    document.addEventListener('keydown', dismiss);
+    return () => document.removeEventListener('keydown', dismiss);
+  }, [finalRankings]);
   async function installApp() {
     if (install) {
       await install.prompt();
@@ -870,15 +883,9 @@ export default function Home() {
       {notice}
     </div>}
 
-    {panel && <div className={`modal-backdrop ${room && !finalRankings && ['info', 'ledger'].includes(panel) ? 'table-sheet-backdrop' : ''}`} onClick={() => {
-      setPanel('');
-      setConfirm('');
-    }}>
+    {panel && <div className={`modal-backdrop ${room && !finalRankings && ['info', 'ledger'].includes(panel) ? 'table-sheet-backdrop' : ''}`} onClick={closeTablePanel}>
       <section role="dialog" aria-modal="true" aria-label={panel === 'confirm' ? (confirm === 'stand_up' ? 'Confirm stand up' : 'Confirm terminate game') : panel === 'ledger' ? (finalRankings ? 'Final Game Rankings' : 'Current Game Rankings') : panel === 'info' ? 'Game Info' : 'Table controls'} className={`modal ${panel === 'menu' ? 'compact-menu' : ''} ${panel === 'confirm' ? 'confirmation-dialog' : ''} ${panel === 'ledger' ? 'wide' : ''} ${finalRankings ? 'final-rankings' : room && ['info', 'ledger'].includes(panel) ? 'table-sheet' : ''}`} onClick={e => e.stopPropagation()}>
-        <button className="modal-close icon-button" onClick={() => {
-          setPanel('');
-          setConfirm('');
-        }} aria-label="Close">
+        <button className="modal-close icon-button" onClick={closeTablePanel} aria-label={finalRankings ? "Close and return to lobby" : "Close"}>
           <X size={20} />
         </button>
 

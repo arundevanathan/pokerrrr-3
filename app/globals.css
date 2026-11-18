@@ -5245,3 +5245,54 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .final-rankings .ledger-scroll { margin: 10px 0; }
 .final-rankings td, .final-rankings th { padding: clamp(4px, 1.2dvh, 10px) 5px; }
 .final-rankings td:first-child { white-space: normal; overflow-wrap: anywhere; }
+
+/* Keep the full game setup and its primary action above the fold on phones. */
+.simple-lobby .game-launch {
+  padding: clamp(14px, 4vw, 22px);
+}
+
+.simple-lobby .game-launch h2 {
+  margin-bottom: 12px;
+  font-size: clamp(25px, 6vw, 32px);
+}
+
+.game-launch-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  row-gap: 12px;
+}
+
+.simple-lobby .game-launch-fields > label {
+  min-width: 0;
+  margin: 0;
+}
+
+.game-launch-fields > label > :is(input, select) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+
+.game-launch-fields > label > small {
+  margin: 4px 0 0;
+}
+
+.game-launch-fields > :is(.game-options, .primary) {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.game-launch-fields .game-options {
+  gap: 8px 16px;
+}
+
+.game-launch-fields .game-options legend {
+  margin-bottom: 6px;
+}
+
+@media (max-width: 600px) {
+  .lobby.simple-lobby:has(> .game-launch) {
+    padding: 12px 12px 24px;
+  }
+}
