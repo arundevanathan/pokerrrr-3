@@ -928,10 +928,10 @@ export default function Home() {
         {panel === 'buyin' && <>
           <h2>Load Chips</h2>
           <p>
-            {handActive && me?.inHand ? 'Choose your amount. Chips are added automatically after this hand.' : 'Choose how many chips to add. Reloads are automatic.'}
+            {handActive && me?.inHand ? 'Choose your amount. Chips are added automatically after this hand.' : 'Choose how many chips to add.'} Up to {fmt(room.settings.maxBuyin)} chips per reload.
           </p>
-          <label>Chips<input type="number" min={room.settings.bb} max={room.settings.maxBuyin} value={rebuy} onChange={e => setRebuy(Number(e.target.value))} /></label>
-          <button className="primary full" disabled={controlsBusy || room.requests.some((q: any) => q.id === room.me)} onClick={async () => {
+          <label>Chips<input type="number" min={room.settings.bb} max={room.settings.maxBuyin} step={1} value={rebuy} onChange={e => setRebuy(Number(e.target.value))} /></label>
+          <button className="primary full" disabled={controlsBusy || !Number.isInteger(rebuy) || rebuy < room.settings.bb || rebuy > room.settings.maxBuyin || room.requests.some((q: any) => q.id === room.me)} onClick={async () => {
             if (await send('rebuy', {
               amount: rebuy
             })) {

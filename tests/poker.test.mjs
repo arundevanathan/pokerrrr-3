@@ -500,10 +500,10 @@ test('default blinds and starting stack are 25 / 50 and 2500; players can custom
   command(r, 'friend', {
     type: 'join',
     name: 'Friend',
-    buyin: 6500
+    buyin: 5000
   });
-  assert.equal(r.players[1].stack, 6500);
-  assert.equal(r.players[1].buyins, 6500);
+  assert.equal(r.players[1].stack, 5000);
+  assert.equal(r.players[1].buyins, 5000);
   assert.equal(r.requests.length, 0);
 });
 test('private runout choices stay sealed for the full five-second voting window', () => {
@@ -718,10 +718,10 @@ test('a new player joining mid-hand gets their chosen stack without entering the
   command(r, 'new-friend', {
     type: 'join',
     name: 'New friend',
-    buyin: 3500
+    buyin: 1000
   });
   const p = r.players.find(p => p.id === 'new-friend');
-  assert.equal(p.stack, 3500);
+  assert.equal(p.stack, 1000);
   assert.equal(p.inHand, false);
   assert.equal(r.requests.length, 0);
   auto(r);
@@ -828,7 +828,7 @@ test('pending Sit Out can be canceled; Get Up supersedes it and cancels an unapp
     type: 'join',
     name: 'New',
     seat: p.seat,
-    buyin: 1300
+    buyin: 1000
   });
   startHand(r, r.nextDealAt);
   assert.equal(p.inHand, false);

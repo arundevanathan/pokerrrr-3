@@ -152,7 +152,7 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     code,
     name: 'Integration Friend',
     seat: 2,
-    buyin: 1750
+    buyin: 950
   }));
   room = await api(host, null, code);
   const peers = [];
