@@ -38,6 +38,10 @@ const gameName: Record<string, string> = {
   PLO4: '4-card Omaha',
   PLO5: '5-card Omaha'
 };
+function sortedHoleCards(cards: number[]) {
+  return [...cards].sort((a, b) => a % 13 - b % 13 || a - b);
+}
+
 function Card({
   value,
   small = false,
@@ -730,7 +734,7 @@ export default function Home() {
                     if (enableReactions && room.phase !== 'closed') reactions.setTarget(reactions.target === s ? null : s);
                   }}>
                     {p.cards?.length ? <div className="hole-cards">
-                      {p.cards.slice(0, visibleCount).map((c: number, i: number) => <span className={effects.dealing ? 'arriving-hole-card' : ''} style={{ '--fan-angle': `${(i - (cardCount - 1) / 2) * 9}deg`, '--fan-lift': `${Math.abs(i - (cardCount - 1) / 2) * 3}px` } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
+                      {sortedHoleCards(p.cards).slice(0, visibleCount).map((c: number, i: number) => <span className={effects.dealing ? 'arriving-hole-card' : ''} style={{ '--fan-angle': `${(i - (cardCount - 1) / 2) * 9}deg`, '--fan-lift': `${Math.abs(i - (cardCount - 1) / 2) * 3}px` } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
                         <Card value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
                       </span>)}
                     </div> : <div className="hole-cards">
@@ -812,7 +816,7 @@ export default function Home() {
             </div>
             {seated && <div className="personal-hand" aria-label="Your cards">
               <div className="personal-hole-cards" aria-label="Your cards">
-                {me?.inHand && me.cards?.length ? [...me.cards].sort((a: number, b: number) => a % 13 - b % 13 || a - b).map((c: number, i: number) => <Card key={`${room.handStartedAt || 0}:${i}`} value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />) : <span className="personal-cards-placeholder">{room.game || 'NLH'} · Your cards</span>}
+                {me?.inHand && me.cards?.length ? sortedHoleCards(me.cards).map((c: number, i: number) => <Card key={`${room.handStartedAt || 0}:${i}`} value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />) : <span className="personal-cards-placeholder">{room.game || 'NLH'} · Your cards</span>}
               </div>
             </div>}
             {me?.pendingSeatAction === 'leave' && <p className="game-status" role="status">Standing up after this hand and payouts. <button className="text-button" disabled={controlsBusy || room.terminationPending} onClick={() => send('cancel_stand_up')}>Cancel</button></p>}
@@ -1098,7 +1102,7 @@ export default function Home() {
                   <span>
                     {p.name}
                   </span>
-                  {p.cards.map((c: number, i: number) => <Card key={i} value={c} small />)}
+                  {sortedHoleCards(p.cards).map((c: number, i: number) => <Card key={i} value={c} small />)}
                 </div>)}
                 <div className="history-actions">
                   {h.actions.map((a: string, i: number) => <div key={i}>
