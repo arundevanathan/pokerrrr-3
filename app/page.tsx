@@ -702,23 +702,21 @@ export default function Home() {
               }}>
                 {p ? <>
                   {win && <div className="winner-badge"><Trophy size={10} /> +{fmt(win.wonAmount ?? win.amount)}</div>}
-                  {p.id !== room.me && <div className="seat-top" data-reaction-target={enableReactions && room.phase !== 'closed' ? s : undefined} onClick={() => {
+                  {p.id !== room.me && p.inHand && (p.cards?.length || handActive) ? <div className="seat-top" data-reaction-target={enableReactions && room.phase !== 'closed' ? s : undefined} onClick={() => {
                     if (enableReactions && room.phase !== 'closed') reactions.setTarget(reactions.target === s ? null : s);
                   }}>
-                    {p.inHand && p.cards?.length ? <div className="hole-cards">
+                    {p.cards?.length ? <div className="hole-cards">
                       {p.cards.slice(0, visibleCount).map((c: number, i: number) => <span className={effects.dealing ? 'arriving-hole-card' : ''} style={{ '--fan-angle': `${(i - (cardCount - 1) / 2) * 9}deg`, '--fan-lift': `${Math.abs(i - (cardCount - 1) / 2) * 3}px` } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
                         <Card value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
                       </span>)}
-                    </div> : p.inHand && handActive ? <div className="hole-cards">
+                    </div> : <div className="hole-cards">
                       {Array.from({
                         length: visibleCount
                       }, (_, i) => <span className={effects.dealing ? 'arriving-hole-card' : ''} style={{ '--fan-angle': `${(i - (cardCount - 1) / 2) * 9}deg`, '--fan-lift': `${Math.abs(i - (cardCount - 1) / 2) * 3}px` } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
                         <Card small back />
                       </span>)}
-                    </div> : <div className="avatar">
-                      {p.name.slice(0, 2).toUpperCase()}
                     </div>}
-                  </div>}
+                  </div> : null}
                   <div className="seat-info"
                     data-reaction-target={enableReactions && p.id !== room.me && room.phase !== 'closed' ? s : undefined}
                     role={room.phase !== 'closed' && (p.id === room.me || enableReactions) ? 'button' : undefined}
