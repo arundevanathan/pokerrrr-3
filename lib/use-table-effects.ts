@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { dealPlan, boardPlan, showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack } from './table-presentation.mjs';
 import { PokerAudio } from './poker-audio';
 import { bettingOpportunity } from './client/raise-selection.mjs';
-export function useTableEffects(room: any, audio: PokerAudio | null) {
+export function useTableEffects(room: any, audio: PokerAudio | null, hasAutomaticAction = false) {
   const [flow, setFlow] = useState<any>({}),
     [now, setNow] = useState(Date.now());
   const previous = useRef<any>(null),
@@ -12,6 +12,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
   const waitingForVisibleSnapshot = useRef(true);
   const silence = useRef(true);
   const audibleAfter = useRef(0);
+  const turnVibration = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useLayoutEffect(() => {
     if (!room || document.hidden) {
       silence.current = true;
@@ -91,9 +92,24 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
         key: `${handKey}:street`
       };
     }
-    if (newHand || changedBoard || newResult) setFlow((old: any) => newHand ? next : {
-      ...old,
-      ...next
+    if (newHand || changedBoard || newResult) setFlow((old: any) => {
+      if (newHand) return next;
+      if (!newResult && next.board && old.board) {
+        const previousEnd = old.board.startedAt + (old.board.events.at(-1)?.at || 0) + 380;
+        if (previousEnd > next.board.startedAt) {
+          const offset = previousEnd - old.board.startedAt;
+          return {
+            ...old, ...next,
+            board: {
+              ...next.board,
+              startedAt: old.board.startedAt,
+              events: [...old.board.events, ...next.board.events.map((event: { at: number; index: number }) =>
+                ({ ...event, at: event.at + offset }))]
+            }
+          };
+        }
+      }
+      return { ...old, ...next };
     });
     previous.current = {
       code: room.code,
@@ -123,8 +139,15 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
     if (!silence.current && last?.code === room.code) {
       const actions = (room.actionEvents || []).filter((e: any) => e.type !== 'fold' && e.seq > last.seq && e.at > audibleAfter.current);
       actions.forEach((e: any, i: number) => audio?.play(e.type, i * 75));
-      if (turnOpportunity && turnOpportunity !== last.turnOpportunity) {
-        audio?.play('your-turn', actions.length ? (actions.length - 1) * 75 + 145 : 0);
+      if (turnOpportunity && turnOpportunity !== last.turnOpportunity && !hasAutomaticAction) {
+        const delay = actions.length ? (actions.length - 1) * 75 + 145 : 0;
+        audio?.play('your-turn', delay);
+        if (audio?.enabled && typeof navigator.vibrate === 'function') {
+          clearTimeout(turnVibration.current);
+          turnVibration.current = setTimeout(() => {
+            if (!document.hidden && audio.enabled && heard.current?.turnOpportunity === turnOpportunity) navigator.vibrate(45);
+          }, delay);
+        }
       }
     }
     heard.current = {
@@ -132,18 +155,20 @@ export function useTableEffects(room: any, audio: PokerAudio | null) {
       seq: room.actionSeq || 0,
       turnOpportunity
     };
-  }, [room, turnOpportunity, audio]);
+  }, [room, turnOpportunity, audio, hasAutomaticAction]);
   useEffect(() => {
     const hide = () => {
       if (document.hidden) {
         waitingForVisibleSnapshot.current = true;
         silence.current = true;
         audio?.cancel();
+        clearTimeout(turnVibration.current);
       }
     };
     document.addEventListener('visibilitychange', hide);
     return () => {
       document.removeEventListener('visibilitychange', hide);
+      clearTimeout(turnVibration.current);
       audio?.cancel();
     };
   }, [audio]);

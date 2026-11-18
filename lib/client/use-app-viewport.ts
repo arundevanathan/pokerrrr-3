@@ -9,11 +9,27 @@ export function useAppViewport(inGame: boolean) {
     const element = app.current;
     if (!inGame || !element) return;
     let frame = 0;
+    let measuredHeight = 0;
+    let chatWasOpen = false;
+    let keyboardSettled = 0;
     const measure = () => {
       const viewport = window.visualViewport;
       // Do not reflow the table while the user pinch-zooms it.
       if (viewport && Math.abs(viewport.scale - 1) > .01) return;
       const height = viewport?.height || window.innerHeight;
+      const chatOpen = element.classList.contains('chat-active');
+      if (chatOpen) {
+        chatWasOpen = true;
+        window.clearTimeout(keyboardSettled);
+        if (measuredHeight) return;
+      } else if (chatWasOpen && measuredHeight - height > 100) {
+        // Keyboard dismissal can finish after React has removed the overlay.
+        window.clearTimeout(keyboardSettled);
+        keyboardSettled = window.setTimeout(() => { chatWasOpen = false; measure(); }, 500);
+        return;
+      }
+      if (!chatOpen) chatWasOpen = false;
+      measuredHeight = height;
       element.style.setProperty('--app-viewport-top', `${Math.max(0, viewport?.offsetTop || 0)}px`);
       element.style.setProperty('--app-viewport-left', `${Math.max(0, viewport?.offsetLeft || 0)}px`);
       if (height > 0) element.style.setProperty('--app-viewport-height', `${Math.floor(height)}px`);
@@ -29,6 +45,7 @@ export function useAppViewport(inGame: boolean) {
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
+      window.clearTimeout(keyboardSettled);
       window.removeEventListener('resize', resize);
       window.removeEventListener('pageshow', resize);
       window.visualViewport?.removeEventListener('resize', resize);

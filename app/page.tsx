@@ -102,9 +102,6 @@ export default function Home() {
   if (!audio.current) audio.current = new PokerAudio(true);
   const socialAudio = useRef<PokerAudio | null>(null);
   if (!socialAudio.current) socialAudio.current = new PokerAudio();
-  const effects = useTableEffects(room, audio.current),
-    animationBusy = useRef(false);
-  animationBusy.current = effects.presentationBusy;
   const [player, setPlayer] = useState<{
     id: string;
     name: string;
@@ -123,6 +120,14 @@ export default function Home() {
     current = useRef<Room>(null),
     pending = useRef(false),
     offset = useRef(0);
+  const queued = queuedAction.current;
+  const autoActing = Boolean(
+    queued && room?.legal && !busy && !pending.current && (demo.current || connection === 'connected')
+    && preactionValid(queued, room) && resolvePreaction(queued.choice, room.legal.call)
+  );
+  const effects = useTableEffects(room, audio.current, autoActing);
+  const animationBusy = useRef(false);
+  animationBusy.current = effects.presentationBusy;
   const social = useSocial(room, Boolean(demo.current), connection, enableReactions);
   const reactions = useReactions(current, demo, enableReactions);
   // HTTP replies and socket pushes can race. Never replace a newer snapshot.
@@ -586,7 +591,7 @@ export default function Home() {
   const displayedCall = myTurn ? (l?.call || 0) : waitingCall;
   const canQueueAction = Boolean(!myTurn && me?.inHand && !me.folded && !me.away && me.stack > 0);
   const clampRaise = (v: number) => Math.min(raiseMax, Math.max(raiseMin, Math.round(v || raiseMin)));
-  return <div ref={appViewport} className={`app ${room ? 'in-game' : ''} ${social.open ? 'composing-chat' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
+  return <div ref={appViewport} className={`app ${room ? 'in-game' : ''} ${social.open ? 'chat-active' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
 
     <header className="topbar">
       <button className="brand" onClick={room ? exit : undefined} aria-label="Dunzo Club">
@@ -637,9 +642,6 @@ export default function Home() {
             <span className="table-stakes">{fmt(room.settings.sb)}/{fmt(room.settings.bb)}</span>
             <span>Hand {room.phase === 'lobby' ? 0 : room.completed + (['showdown', 'closed'].includes(room.phase) ? 0 : 1)}</span>
             {room.sessionEndsAt && <span className="session-clock" aria-label="Session time remaining">{Math.floor(sessionSeconds / 60)}:{String(sessionSeconds % 60).padStart(2, '0')}</span>}
-            <span className={`typing-turn-status ${myTurn && live ? `is-your-turn ${seconds <= 5 ? 'urgent' : ''}` : ''}`} role="status">
-              {myTurn && live ? `Your turn · ${seconds}s${bettingStatus}` : live ? `${room.players.find((p: { id: string; name: string }) => p.id === room.turn)?.name || 'Player'}’s turn` : voting ? 'Runout vote' : room.phase === 'showdown' ? 'Showdown' : room.game}
-            </span>
             {(room.settings.games?.length || 0) > 1 && room.phase !== 'closed' && <small className="next-variant">
               {room.settings.games[(gameIndex + 1) % room.settings.games.length]} {room.settings.rotation === room.handsIntoRotation ? 'next hand' : `in ${room.settings.rotation - room.handsIntoRotation} ${room.settings.rotation - room.handsIntoRotation === 1 ? 'hand' : 'hands'}`}
             </small>}
@@ -676,8 +678,11 @@ export default function Home() {
                           const shown = effects.boardVisible(i, runIndex),
                             value = shown ? board[i] : undefined,
                             winningBoard = effects.resultReady && runIndex + 1 === focusedRunNumber ? focusedHand?.boardCards || [] : [],
-                            timeline = runIndex === 1 ? effects.board2 : effects.board;
-                          return <div key={`${room.handStartedAt || 0}:${runIndex}:${i}:${shown}`} className={value !== undefined && timeline?.events.some((e: any) => e.index === i) ? 'board-card-wrap board-dealt' : 'board-card-wrap'}>
+                            timeline = runIndex === 1 ? effects.board2 : effects.board,
+                            reveal = timeline?.events.find((event: { index: number }) => event.index === i),
+                            flip = value !== undefined && reveal && effects.now < timeline.startedAt + reveal.at + 450;
+                          return <div key={`${room.handStartedAt || 0}:${runIndex}:${i}:${value ?? 'empty'}`} className={flip ? 'board-card-wrap board-dealt' : 'board-card-wrap'}>
+                            {flip && <div className="board-flip-back" aria-hidden="true"><span>♠</span></div>}
                             <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />
                           </div>;
                         })}
@@ -783,21 +788,16 @@ export default function Home() {
 
           </div>
 
-          <div onPointerDownCapture={e => {
-            // Keep the composer focused so the first betting tap cannot move the
-            // button by dismissing the keyboard before its click is delivered.
-            if (social.open && (e.target as HTMLElement).closest('.betting-controls button, .pause-deal')) e.preventDefault();
-          }} className="action-zone">
+          <div className="action-zone">
             <div className="hand-toolbar">
               <span className={`turn-status ${myTurn && live ? `is-your-turn ${seconds <= 5 ? 'urgent' : ''}` : ''}`} role="status">
                 {myTurn && live ? `Your turn · ${seconds}s${bettingStatus}` : live ? `${room.players.find((p: { id: string; name: string }) => p.id === room.turn)?.name || 'Player'}’s turn` : room.game}
               </span>
               <div className="hand-toolbar-actions"><button className="text-button" onClick={() => setPanel('ledger')}>Rankings</button>
-                {enableReactions && !social.open && <ChatButton social={social} readOnly={room.phase === 'closed'} />}
+                {enableReactions && <ChatButton social={social} readOnly={room.phase === 'closed'} />}
               </div>
             </div>
             {seated && <div className="personal-hand" aria-label="Your cards">
-              <span className="typing-hole-label" aria-hidden="true">Your cards</span>
               <div className="personal-hole-cards" aria-label="Your cards">
                 {me?.inHand && me.cards?.length ? [...me.cards].sort((a: number, b: number) => a % 13 - b % 13 || a - b).map((c: number, i: number) => <Card key={`${room.handStartedAt || 0}:${i}`} value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />) : <span className="personal-cards-placeholder">{room.game || 'NLH'} · Your cards</span>}
               </div>
@@ -841,18 +841,9 @@ export default function Home() {
                   <div className="action-buttons">
                     <button className="fold" disabled={controlsBusy || (myTurn && !l) || (!myTurn && !canQueueAction)} aria-pressed={!myTurn && preaction === (displayedCall ? 'fold' : 'check-fold')} onClick={() => myTurn ? send('fold') : selectPreaction(displayedCall ? 'fold' : 'check-fold')}>{!myTurn && !displayedCall ? 'Check / Fold' : 'Fold'}</button>
                     <button className="secondary check-call" disabled={controlsBusy || (myTurn && !l) || (!myTurn && (!canQueueAction || Boolean(displayedCall)))} aria-pressed={!myTurn && preaction === 'check'} onClick={() => myTurn ? send(l?.call ? 'call' : 'check') : selectPreaction('check')}>{displayedCall ? `Call ${fmt(displayedCall)}` : 'Check'}</button>
-                    <button className="primary" disabled={!myTurn || controlsBusy || !l?.canRaise || !raiseValid} onClick={() => {
-                      if (social.open) {
-                        // The typing-view button opens amount selection only.
-                        // A second explicit tap on the normal Raise button bets.
-                        (document.getElementById('chat-message') as HTMLInputElement | null)?.blur();
-                        social.setOpen(false);
-                        return;
-                      }
-                      void send('raise', { amount: raise });
-                    }}>
-                      <span className="raise-button-label">{social.open ? 'Raise…' : 'Raise'}</span>
-                      {!social.open && <span className="raise-button-amount">{myTurn && l?.canRaise ? fmt(raise) : '—'}</span>}
+                    <button className="primary" disabled={!myTurn || controlsBusy || !l?.canRaise || !raiseValid} onClick={() => void send('raise', { amount: raise })}>
+                      <span className="raise-button-label">Raise</span>
+                      <span className="raise-button-amount">{myTurn && l?.canRaise ? fmt(raise) : '—'}</span>
                     </button>
                   </div>
                 </div>

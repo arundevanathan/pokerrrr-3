@@ -66,6 +66,7 @@ function ReactionAnimation({ event, room, mySeat, audio }: {
   const to = seatPosition(event.to.seat, mySeat, room.settings.seats);
   const { Animation } = renderer;
   return <div ref={overlay} className={`reaction-overlay reaction-${event.reaction}`} style={{
+    '--cheers-side': from.x <= to.x ? -1 : 1,
     '--strike-angle': `${Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI + 90}deg`,
     '--reaction-from-x': `clamp(var(--seat-edge-x), ${from.x}%, calc(100% - var(--seat-edge-x)))`,
     '--reaction-from-y': `clamp(var(--seat-edge-y), ${from.y}%, calc(100% - var(--seat-edge-y)))`,

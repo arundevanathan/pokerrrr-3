@@ -107,12 +107,12 @@ export class PokerAudio {
       src.start(time);
       src.stop(time + duration);
     };
-    const tone = (time: number, frequency: number, duration: number, volume: number) => {
+    const tone = (time: number, frequency: number, duration: number, volume: number, decay = 1) => {
       const osc = ctx.createOscillator(),
         gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(frequency, time);
-      osc.frequency.exponentialRampToValueAtTime(frequency * .78, time + duration);
+      osc.frequency.exponentialRampToValueAtTime(frequency * decay, time + duration);
       gain.gain.setValueAtTime(.001, time);
       gain.gain.linearRampToValueAtTime(volume, time + .004);
       gain.gain.exponentialRampToValueAtTime(.001, time + duration);
@@ -124,9 +124,9 @@ export class PokerAudio {
     };
     const voice = (time: number, frequency: number, duration: number, volume: number) => {
       const osc = ctx.createOscillator(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
-      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(frequency, time);
-      osc.frequency.exponentialRampToValueAtTime(frequency * .65, time + duration);
-      filter.type = 'bandpass'; filter.frequency.setValueAtTime(frequency * 3.5, time); filter.Q.value = 2;
+      osc.type = 'triangle'; osc.frequency.setValueAtTime(frequency, time);
+      osc.frequency.exponentialRampToValueAtTime(frequency * .85, time + duration);
+      filter.type = 'bandpass'; filter.frequency.setValueAtTime(frequency * 3.5, time); filter.Q.value = 1.2;
       gain.gain.setValueAtTime(.001, time); gain.gain.linearRampToValueAtTime(volume, time + .025);
       gain.gain.exponentialRampToValueAtTime(.001, time + duration);
       osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
@@ -135,35 +135,43 @@ export class PokerAudio {
     const social = Object.hasOwn(REACTIONS, kind) ? REACTIONS[kind as keyof typeof REACTIONS] : null;
     const impact = ctx.currentTime + Math.max(0, delayMs + (social?.impactAt || 0)) / 1000;
     if (kind === 'chappal') {
-      const impact = ctx.currentTime + Math.max(0, delayMs + REACTIONS.chappal.impactAt) / 1000;
-      if (delayMs >= 0) noise(at, .10, 1400, .045);
-      // A dry broadband crack, a very short low thud and a tiny second skin
-      // contact. No musical pitch or long tail: all three land with the flick.
-      noise(impact, .048, 2600, .48);
-      noise(impact + .006, .075, 650, .22);
-      tone(impact, 115, .055, .19);
-      noise(impact + .014, .028, 3600, .13);
+      if (delayMs >= 0) noise(at, .08, 1400, .025);
+      noise(impact, .042, 2600, .28);
+      noise(impact + .006, .064, 650, .15);
+      tone(impact, 115, .055, .09);
     } else if (kind === 'cheers') {
-      // Two bright glass resonances meet at the visual clink.
-      tone(impact, 2200, .36, .13); tone(impact + .018, 3300, .28, .065);
-      noise(impact, .018, 4700, .09);
+      // Glass rings at stable frequencies. The short attack is the rims touching.
+      noise(impact, .015, 5100, .055);
+      tone(impact, 2348, .24, .065);
+      tone(impact + .005, 3817, .13, .035);
+      tone(impact + .011, 2910, .19, .022);
     } else if (kind === 'money') {
-      for (let i = 0; i < 6; i++) noise(impact + i * .065, .055, 1200 + i * 180, .055);
-      [920, 1380, 1840].forEach((frequency, i) => tone(impact + .08 + i * .07, frequency, .12, .045));
+      for (let i = 0; i < 5; i++) {
+        noise(impact + i * .042, .06, 1900 + i * 310, .071 - i * .007);
+      }
     } else if (kind === 'tomato') {
-      if (delayMs >= 0) noise(at, .13, 1000, .04);
-      tone(impact, 95, .14, .2); noise(impact, .17, 420, .23);
-      noise(impact + .035, .12, 1700, .1);
+      tone(impact, 96, .095, .08, .65);
+      noise(impact, .12, 540, .21);
+      noise(impact + .014, .065, 1560, .092);
     } else if (kind === 'crown') {
-      [523, 659, 784, 1047].forEach((frequency, i) => tone(impact + i * .065, frequency, .28, .07));
+      noise(impact, .022, 3600, .045);
+      tone(impact, 1481, .24, .05);
+      tone(impact + .008, 2581, .17, .034);
     } else if (kind === 'laugh') {
-      [155, 185, 150, 175].forEach((frequency, i) => voice(impact + i * .12, frequency, .105, .13));
+      [159, 164, 142].forEach((frequency, i) => {
+        const onset = impact + i * .102;
+        voice(onset, frequency, .094, .067 - i * .009);
+        noise(onset, .085, 1050, .065 - i * .01);
+      });
     } else if (kind === 'duck') {
-      voice(impact, 280, .15, .14); voice(impact + .19, 245, .18, .14);
+      voice(impact, 194, .12, .085);
+      noise(impact, .11, 1350, .083);
+      voice(impact + .14, 179, .10, .062);
     } else if (kind === 'punch') {
-      if (delayMs >= 0) noise(at, .13, 850, .06);
-      noise(impact, .055, 1800, .29); tone(impact, 72, .13, .24);
-      noise(impact + .012, .09, 300, .15);
+      if (delayMs >= 0) noise(at, .10, 890, .028);
+      noise(impact, .045, 1500, .15);
+      tone(impact, 76, .10, .15, .65);
+      noise(impact + .009, .06, 360, .09);
     }
   }
 }

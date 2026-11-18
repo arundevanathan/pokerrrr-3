@@ -41,7 +41,6 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
   const generation = useRef(0);
   const local = useRef(practice);
   useLayoutEffect(() => { active.current = room; local.current = practice; }, [room, practice]);
-  const setOpen = useCallback((value: boolean) => { setOpenState(value); }, []);
   const retry = useRef<ChatRequest | null>(null);
   const storedRequestKey = `dunzo-chat-pending:${epoch}`;
   const storeRequest = (request: ChatRequest, clear = false) => {
@@ -112,6 +111,16 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
     return task;
   }, [enabled, merge, receive]);
   const refresh = useCallback(() => load(), [load]);
+  const setOpen = useCallback((value: boolean) => {
+    setOpenState(value);
+    historyVisible.current = value;
+    if (value) {
+      setHistoryOpen(false);
+      setHistoryFocus(null);
+      setUnread(0);
+      void refresh();
+    }
+  }, [refresh]);
   useLayoutEffect(() => {
     generation.current++;
     setEntries([]); setDraft(''); historyVisible.current = false; setHistoryOpen(false); setHistoryFocus(null);
@@ -200,7 +209,8 @@ export function useSocial(room: SocialRoom | null, practice: boolean, connection
     }
   }
   function openHistory(id: string | null = null) {
-    setOpen(false); setHistoryFocus(id); historyVisible.current = true; setHistoryOpen(true); setUnread(0);
+    setOpenState(active.current?.phase !== 'closed');
+    setHistoryFocus(id); historyVisible.current = true; setHistoryOpen(true); setUnread(0);
     void refresh();
   }
   function closeHistory() {

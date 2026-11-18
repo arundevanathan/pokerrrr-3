@@ -59,13 +59,23 @@
 .social-flight { left: var(--reaction-from-x); top: var(--reaction-from-y); opacity: 0; transform: translate(-50%, -50%); animation: social-arrive var(--reaction-duration) ease-out var(--reaction-delay) both; }
 .social-flight svg, .reaction-at-target > svg { width: 100%; height: 100%; filter: drop-shadow(0 3px 3px #0007); }
 .reaction-at-target { left: var(--reaction-to-x); top: var(--reaction-to-y); transform: translate(-50%, -50%); }
-.cheers-effect { opacity: 0; animation: cheers-toast var(--reaction-duration) ease-out var(--reaction-delay) both; }
-.cheers-effect .glass-left { transform-origin: 44px 55px; animation: glass-left var(--reaction-duration) ease-out var(--reaction-delay) both; }
-.cheers-effect .glass-right { transform-origin: 44px 55px; animation: glass-right var(--reaction-duration) ease-out var(--reaction-delay) both; }
-.clink-spark { opacity: 0; }
-.cheers-effect .clink-spark { animation: clink-flash var(--reaction-duration) linear var(--reaction-delay) both; }
+.cheers-glass {
+  --glass-side: var(--cheers-side);
+  --glass-end-x: calc(var(--reaction-to-x) + var(--glass-side) * 19px);
+  --glass-end-y: max(25px, calc(var(--reaction-to-y) - 39px));
+  left: var(--glass-from-x);
+  top: var(--glass-from-y);
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  opacity: 0;
+  animation: cheers-travel var(--reaction-duration) ease-out var(--reaction-delay) both;
+}
+.cheers-sender { --glass-from-x: var(--reaction-from-x); --glass-from-y: var(--reaction-from-y); }
+.cheers-receiver { --glass-side: calc(-1 * var(--cheers-side)); --glass-from-x: var(--reaction-to-x); --glass-from-y: var(--reaction-to-y); }
+.cheers-glass svg { width: 100%; height: 100%; filter: drop-shadow(0 2px 3px #0007); }
 .reaction-sparkles { position: absolute; inset: 0; }
-.reaction-sparkles i { position: absolute; left: 50%; top: 50%; font-style: normal; font-size: 15px; color: #ffe1a0; opacity: 0; transform: rotate(calc(var(--particle) * 72deg)) translateY(-44px); animation: sparkle-pop var(--reaction-duration) ease-out var(--reaction-delay) both; }
+.reaction-sparkles i { position: absolute; left: 50%; top: 50%; font-style: normal; font-size: 9px; color: #e6cd9c; opacity: 0; transform: rotate(calc(var(--particle) * 120deg)) translateY(-34px); animation: sparkle-pop var(--reaction-duration) ease-out var(--reaction-delay) both; }
 .flying-note { position: absolute; inset: 0; opacity: 0; animation: money-burst var(--reaction-duration) ease-out calc(var(--reaction-delay) + var(--note) * 22ms) both; }
 .flying-note svg { width: 54px; height: 54px; }
 .tomato-flight { width: 50px; height: 50px; animation-name: tomato-throw; }
@@ -85,10 +95,15 @@
 .punch-contact i:nth-child(2) { transform: rotate(-45deg); top: 12px; left: 48px; }
 .punch-contact i:nth-child(3) { transform: rotate(45deg); top: 58px; left: 48px; }
 @keyframes social-arrive { 0% { opacity: 0; } 3% { opacity: 1; } 30%, 80% { opacity: 1; left: var(--reaction-to-x); top: var(--reaction-to-y); } 100% { opacity: 0; left: var(--reaction-to-x); top: var(--reaction-to-y); } }
-@keyframes cheers-toast { 0%, 8% { opacity: 0; transform: translate(-50%, -30%) scale(.6); } 25%, 78% { opacity: 1; transform: translate(-50%, -65%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -80%) scale(.9); } }
-@keyframes glass-left { 0%, 20% { transform: translate(-16px, 6px) rotate(-6deg); } 36% { transform: translate(-5px, 3px) rotate(18deg); } 44%, 100% { transform: translate(-10px, 5px) rotate(9deg); } }
-@keyframes glass-right { 0%, 20% { transform: translate(38px, -3px) rotate(6deg); } 36% { transform: translate(26px, -1px) rotate(-18deg); } 44%, 100% { transform: translate(33px, -1px) rotate(-9deg); } }
-@keyframes clink-flash { 0%, 35%, 55%, 100% { opacity: 0; } 36%, 46% { opacity: 1; } }
+/* Contact at 500 ms in the 1400 ms Cheers timeline. */
+@keyframes cheers-travel {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.72); }
+  8% { opacity: 1; }
+  35.714%, 78%, 100% { left: var(--glass-end-x); top: var(--glass-end-y); }
+  35.714% { opacity: 1; transform: translate(-50%, -50%) rotate(calc(-21deg * var(--glass-side))); }
+  44%, 78% { opacity: 1; transform: translate(-50%, -50%) rotate(calc(-9deg * var(--glass-side))); }
+  100% { opacity: 0; transform: translate(-50%, -61%) scale(.9); }
+}
 @keyframes sparkle-pop { 0%, 33% { opacity: 0; } 38%, 60% { opacity: 1; } 85%, 100% { opacity: 0; } }
 @keyframes money-burst { 0%, 10% { opacity: 0; transform: translate(12px, 12px) scale(.3); } 16% { opacity: 1; } 45% { opacity: 1; transform: translate(calc(var(--spread-x) * .55), calc(var(--spread-y) * .55)) rotate(calc(var(--note) * 13deg - 30deg)) scale(.95); } 90%, 100% { opacity: 0; transform: translate(var(--spread-x), var(--spread-y)) rotate(calc(var(--note) * 21deg - 65deg)) scale(.75); } }
 @keyframes tomato-throw { 0% { opacity: 0; } 2% { opacity: 1; } 28% { opacity: 1; left: var(--reaction-to-x); top: var(--reaction-to-y); transform: translate(-50%, -50%) rotate(50deg); } 29%, 100% { opacity: 0; left: var(--reaction-to-x); top: var(--reaction-to-y); } }
@@ -99,12 +114,17 @@
 @keyframes duck-arrive { 0% { opacity: 0; } 3% { opacity: 1; } 47%, 78% { opacity: 1; left: var(--reaction-to-x); top: var(--reaction-to-y); } 100% { opacity: 0; left: var(--reaction-to-x); top: var(--reaction-to-y); } }
 @keyframes duck-waddle { from { transform: rotate(-9deg) translateY(-3px); } to { transform: rotate(9deg) translateY(2px); } }
 @keyframes duck-ripple { 0%, 45% { opacity: 0; transform: scale(.5); } 50% { opacity: .8; } 90%, 100% { opacity: 0; transform: scale(1.5); } }
-@keyframes punch-jab { 0% { opacity: 0; } 3% { opacity: 1; } 30% { opacity: 1; left: var(--reaction-to-x); top: var(--reaction-to-y); transform: translate(-50%, -50%) scale(1.3); } 39% { opacity: 1; left: var(--reaction-to-x); top: var(--reaction-to-y); transform: translate(-60%, -50%) scale(.95); } 65%, 100% { opacity: 0; left: var(--reaction-to-x); top: var(--reaction-to-y); } }
+@keyframes punch-jab { 0% { opacity: 0; } 3% { opacity: 1; } 30% { opacity: 1; left: var(--reaction-to-x); top: var(--reaction-to-y); transform: translate(-50%, -50%) scale(1.08); } 39% { opacity: 1; left: var(--reaction-to-x); top: var(--reaction-to-y); transform: translate(-60%, -50%) scale(.95); } 65%, 100% { opacity: 0; left: var(--reaction-to-x); top: var(--reaction-to-y); } }
 @keyframes punch-contact { 0%, 29% { opacity: 0; } 30%, 41% { opacity: 1; } 55%, 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .social-flight { left: var(--reaction-to-x); top: var(--reaction-to-y); animation-name: reaction-caption; }
-  .cheers-effect { animation-name: reaction-caption; }
-  .glass-left, .glass-right, .laugh-bounce, .duck-waddle, .clink-spark, .reaction-sparkles i { animation: none !important; }
+  .cheers-glass {
+    left: var(--glass-end-x);
+    top: var(--glass-end-y);
+    transform: translate(-50%, -50%) rotate(calc(-15deg * var(--glass-side)));
+    animation-name: reaction-caption;
+  }
+  .laugh-bounce, .duck-waddle, .reaction-sparkles i { animation: none !important; }
   .laugh-tear, .tomato-splat, .punch-contact, .duck-ripple, .crown-aura { display: none; }
   .flying-note { animation-name: reaction-caption; transform: none; }
   .flying-note:not(:first-child) { display: none; }
