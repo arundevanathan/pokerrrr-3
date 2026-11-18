@@ -69,19 +69,19 @@ test('only two effects play concurrently, sender cooldown persists and closure c
   const f = await fixture();
   for (const sender of [a, observer, { id: 'fourth', name: 'Fourth' }]) await f.social.send(sender, reaction(), 'reaction', 10000);
   assert.equal((await f.social.drain('ABC234', 10000)).length, 2);
-  assert.equal(await f.social.deadline('ABC234', 10000), 11000);
+  assert.equal(await f.social.deadline('ABC234', 10000), 11400);
   await assert.rejects(new SocialService(f.storage).send(a, reaction(), 'reaction', 12999), /Wait/);
-  assert.equal((await f.social.drain('ABC234', 10999)).length, 0);
-  assert.equal((await f.social.drain('ABC234', 11000)).length, 1);
+  assert.equal((await f.social.drain('ABC234', 11399)).length, 0);
+  assert.equal((await f.social.drain('ABC234', 11400)).length, 1);
   await f.social.send(a, reaction(), 'reaction', 13000);
   await f.storage.put('room:ABC234', { ...f.room, phase: 'closed' });
   assert.equal((await f.social.drain('ABC234', 13001)).length, 0);
   assert.equal((await f.social.history('ABC234')).entries.length, 4);
 });
 
-test('all eight reactions persist, broadcast their own effect and leave poker unchanged', async () => {
+test('all five selectable reactions persist, broadcast their own effect and leave poker unchanged', async () => {
   const f = await fixture();
-  const catalogue = ['chappal', 'cheers', 'money', 'tomato', 'crown', 'laugh', 'duck', 'punch'];
+  const catalogue = ['chappal', 'cheers', 'tomato', 'laugh', 'punch'];
   for (const [index, id] of catalogue.entries()) {
     const now = 10000 + index * 3000;
     const sent = await f.social.send(a, reaction(1, { reaction: id }), 'reaction', now);

@@ -67,7 +67,7 @@ export class SocialService {
         fail(definition, 'Unknown reaction', 400);
         const to = room.players.find(p => p.seat === input.targetSeat && !p.left);
         fail(to && to.id !== player.id, 'Choose another seated player', 400);
-        meta.queue = meta.queue.filter(q => q.expiresAt > now);
+        meta.queue = meta.queue.filter(q => reactionDefinition(q.reaction) && q.expiresAt > now);
         fail(meta.queue.length < 12, 'Reaction queue is full. Try again shortly.', 429);
         data = { kind, reaction: definition.id, sender, to: { name: to.name, seat: to.seat }, at: now, id: crypto.randomUUID() };
         meta.queue.push({ id: data.id, code: input.code, reaction: definition.id, from: sender,
@@ -87,7 +87,7 @@ export class SocialService {
       const meta = await tx.get(metadataKey(code));
       if (!room || !meta) return [];
       meta.playing = meta.playing.filter(until => until > now);
-      meta.queue = meta.queue.filter(q => q.expiresAt > now && room.phase !== 'closed'
+      meta.queue = meta.queue.filter(q => reactionDefinition(q.reaction) && q.expiresAt > now && room.phase !== 'closed'
         && room.players.some(p => !p.left && p.id === q.targetId && p.seat === q.to.seat));
       const events = [];
       if (!blocked(room, now)) while (meta.queue.length && meta.playing.length < 2) {

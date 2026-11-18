@@ -27,7 +27,7 @@ test('every social sound schedules at its impact, respects mute and cancels pend
     globalThis.window = {AudioContext:class extends Context {constructor(){super();context=this;}}};
     globalThis.document = {hidden:false};
     const audio = new PokerAudio(); audio.unlock();
-    for (const definition of Object.values(REACTIONS)) {
+    for (const definition of Object.values(REACTIONS).filter(effect => effect.id !== 'laugh')) {
       const start = context.sources.length;
       audio.play(definition.id, 200);
       const nodes = context.sources.slice(start), impact = 20 + (200 + definition.impactAt) / 1000;
@@ -38,7 +38,31 @@ test('every social sound schedules at its impact, respects mute and cancels pend
     const count = context.sources.length; audio.setEnabled(false); audio.play('cheers');
     assert.equal(context.sources.length, count);
     assert.ok(context.sources.every(node => node.stoppedAt === undefined), 'Mute stops scheduled nodes immediately');
-    audio.setEnabled(true); globalThis.document.hidden=true; audio.play('duck');
+    audio.setEnabled(true); globalThis.document.hidden=true; audio.play('tomato');
     assert.equal(context.sources.length, count, 'Suspended pages stay quiet');
   } finally { globalThis.window=originalWindow; globalThis.document=originalDocument; }
+});
+
+test('recorded laugh uses the local clip and starts at the visual impact', async () => {
+  const { window, document, fetch } = globalThis;
+  try {
+    let context;
+    const requested = [];
+    globalThis.window = {AudioContext:class extends Context {
+      constructor() { super(); context = this; }
+      async decodeAudioData() { return { duration: .86 }; }
+    }};
+    globalThis.document = {hidden:false};
+    globalThis.fetch = async url => {
+      requested.push(url);
+      return {ok:true, arrayBuffer:async () => new ArrayBuffer(0)};
+    };
+    const audio = new PokerAudio();
+    audio.unlock();
+    audio.play('laugh', 200);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(requested, ['/sounds/reaction-laugh.mp3']);
+    assert.equal(context.sources.length, 1);
+    assert.equal(context.sources[0].startedAt, 20.6);
+  } finally { Object.assign(globalThis, {window, document, fetch}); }
 });

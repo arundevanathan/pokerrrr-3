@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState, type ComponentType, type CSSProperties } from 'react';
 import { reactionRenderers } from './reaction-art';
 import { REACTIONS, reactionDefinition } from '../lib/reactions.mjs';
 import { seatPosition } from '../lib/table-presentation.mjs';
@@ -10,16 +10,22 @@ import './table-reactions.css';
 
 // Authored vector art stays crisp at every phone size and needs no image request.
 function ChappalArt() {
+  const rubber = useId();
+  const sole = useId();
   return <svg viewBox="0 0 80 120" aria-hidden="true" fill="none">
+    <defs>
+      <linearGradient id={sole}><stop stopColor="#382b25" /><stop offset=".45" stopColor="#7b5c48" /><stop offset="1" stopColor="#4d392f" /></linearGradient>
+      <linearGradient id={rubber}><stop stopColor="#2d2826" /><stop offset=".5" stopColor="#60554b" /><stop offset="1" stopColor="#28221f" /></linearGradient>
+    </defs>
     <path d="M24 113C13 109 12 98 15 83L20 30C21 13 29 5 42 6C57 7 65 18 63 35L57 78C56 91 59 104 49 112C42 117 31 117 24 113Z" fill="#211c18" />
     <path d="M24 109C16 105 17 94 19 81L24 29C25 16 31 9 42 10C54 11 61 21 59 35L53 78C52 92 55 101 46 108C39 112 31 112 24 109Z" fill="#684b35" />
-    <path d="M26 103C21 100 22 89 24 78L28 30C29 20 33 15 41 16C50 17 56 23 54 35L49 78C47 92 51 99 43 104C37 107 31 107 26 103Z" fill="#806047" />
+    <path d="M26 103C21 100 22 89 24 78L28 30C29 20 33 15 41 16C50 17 56 23 54 35L49 78C47 92 51 99 43 104C37 107 31 107 26 103Z" fill={`url(#${sole})`} />
     <path d="M24 109C34 115 45 113 51 105" stroke="#ad8b67" strokeWidth=".8" />
     <path d="M23 59L40 36L58 56L54 68L40 47L24 70Z" fill="#302820" />
-    <path d="M24 57L40 34L58 55L55 62L40 43L24 65Z" fill="#4a3527" />
+    <path d="M24 57L40 34L58 55L55 62L40 43L24 65Z" fill={`url(#${rubber})`} />
     <path d="M26 56L40 37L55 54" stroke="#967355" strokeWidth="1.2" />
     <path d="M39 35L41 23" stroke="#302820" strokeWidth="5" strokeLinecap="round" />
-    <path d="M26 84L44 86M26 91L43 93M27 99L42 100" stroke="#5d432f" strokeWidth="1" opacity=".5" />
+    <path d="M27 76L33 80L39 77L45 81M26 83L32 87L38 84L44 88M26 90L32 94L37 91L43 95M27 97L32 101L38 98L42 102" stroke="#b39379" strokeWidth="1.1" opacity=".45" />
   </svg>;
 }
 
@@ -45,7 +51,7 @@ function ReactionAnimation({ event, room, mySeat, audio }: {
   const [delay] = useState(() => event.startedAt - Date.now());
   const overlay = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!definition.jolt || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!definition?.jolt || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const target = overlay.current?.closest('.table-stage')?.querySelector(`[data-seat-index="${event.to.seat}"] .seat-info`);
     if (!target || Date.now() > event.startedAt + definition.impactAt + 100) return;
     // A short physical jolt at contact sells the hit without moving the seat's
@@ -56,11 +62,11 @@ function ReactionAnimation({ event, room, mySeat, audio }: {
       { translate: '0 0', offset: 1 }
     ], { duration: 130, delay: Math.max(0, event.startedAt + definition.impactAt - Date.now()), easing: 'ease-out' });
     return () => hit.cancel();
-  }, [event.id, event.startedAt, event.to.seat, definition.impactAt, definition.jolt]);
+  }, [event.id, event.startedAt, event.to.seat, definition?.impactAt, definition?.jolt]);
   useEffect(() => {
     // Dropped/late effects never play a detached slap after the animation ends.
-    if (renderer && Date.now() < event.startedAt + definition.impactAt) audio?.play(renderer.sound, event.startedAt - Date.now());
-  }, [event.id, event.startedAt, definition.impactAt, renderer, audio]);
+    if (definition && renderer && Date.now() < event.startedAt + definition.impactAt) audio?.play(renderer.sound, event.startedAt - Date.now());
+  }, [event.id, event.startedAt, definition?.impactAt, renderer, audio]);
   if (!renderer || !definition) return null;
   const from = event.from.seat === null ? { x: 50, y: 90 } : seatPosition(event.from.seat, mySeat, room.settings.seats);
   const to = seatPosition(event.to.seat, mySeat, room.settings.seats);

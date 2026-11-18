@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptReaction, reactionsEnabled, REACTIONS } from '../lib/reactions.mjs';
+import { acceptReaction, reactionsEnabled, REACTIONS, reactionHistoryLabel } from '../lib/reactions.mjs';
 const event = { id: 'unique-effect', code: 'ABC234', reaction: 'chappal', startedAt: 10200,
   from: { seat: 6, name: 'Alice' }, to: { seat: 2, name: 'Bob' } };
 test('receiver drops duplicates, stale/foreign events and future events; unknown environments fail closed', () => {
@@ -22,7 +22,11 @@ test('standing senders animate from the spectator area; malformed or unknown eff
 });
 
 test('every catalogue effect has independent freshness timing', () => {
-  assert.equal(Object.keys(REACTIONS).length, 8);
+  assert.deepEqual(Object.keys(REACTIONS), ['chappal', 'cheers', 'tomato', 'laugh', 'punch']);
+  for (const retired of ['money', 'crown', 'duck']) {
+    assert.ok(reactionHistoryLabel(retired)?.label);
+    assert.equal(acceptReaction({ ...event, reaction: retired }, 'ABC234', new Map(), 10050), false);
+  }
   for (const definition of Object.values(REACTIONS)) {
     const next = { ...event, id: definition.id, reaction: definition.id };
     assert.equal(acceptReaction(next, 'ABC234', new Map(), next.startedAt + definition.duration - 1), true);

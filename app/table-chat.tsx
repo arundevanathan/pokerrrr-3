@@ -2,7 +2,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { MessageCircle, X, RefreshCw } from 'lucide-react';
-import { reactionDefinition } from '../lib/reactions.mjs';
+import { reactionHistoryLabel } from '../lib/reactions.mjs';
 import { seatPosition } from '../lib/table-presentation.mjs';
 import { type SocialRoom, type useSocial } from '../lib/client/use-social';
 import './table-chat.css';
@@ -120,7 +120,7 @@ export function ChatDrawer({ room, social, myTurn }: { room: SocialRoom; social:
         requestAnimationFrame(() => { if (el) el.scrollTop = top + el.scrollHeight - height; });
       }}>{social.loading ? 'Loading…' : 'Earlier messages'}</button>}
       {!social.entries.length && <p className="chat-empty">{social.loading ? 'Loading conversation…' : 'Say something to the table.'}</p>}
-      {social.entries.map(entry => entry.kind === 'reaction' ? <div className="chat-activity" key={entry.id}>{reactionDefinition(entry.reaction)?.icon || '✦'} {entry.sender.name} → {entry.to?.name} · {reactionDefinition(entry.reaction)?.label || 'Reaction'}</div> : <article id={`chat-entry-${entry.id}`} className="chat-message" key={entry.id}>
+      {social.entries.map(entry => entry.kind === 'reaction' ? <div className="chat-activity" key={entry.id}>{reactionHistoryLabel(entry.reaction)?.icon || '✦'} {entry.sender.name} → {entry.to?.name} · {reactionHistoryLabel(entry.reaction)?.label || 'Reaction'}</div> : <article id={`chat-entry-${entry.id}`} className="chat-message" key={entry.id}>
         <div><b>{entry.sender.name}</b><time dateTime={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></div>
         <p>{entry.text}</p>
       </article>)}
