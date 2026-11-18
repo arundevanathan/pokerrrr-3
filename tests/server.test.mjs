@@ -175,8 +175,8 @@ test('reload retry after lost response has one effect across coordinator restart
 test('stale hand/version and unauthorized host operations cannot mutate state', async () => {
   const f = await fixture(),
     initial = await f.service.snapshot(f.players[0], f.code);
-  await assert.rejects(f.send(f.players[1], 'deal'), /Only the host/);
-  await f.send(f.players[0], 'deal');
+  await assert.rejects(f.send(f.players[1], 'pause'), /Only the host/);
+  await f.send(f.players[1], 'deal');
   await assert.rejects(f.service.execute(f.players[0], commandEnvelope({
     type: 'deal',
     code: f.code

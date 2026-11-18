@@ -224,3 +224,14 @@ test('offline busted seats stand up after two further payouts, with reconnect an
   tick(room, 15001, false, offline);
   assert.equal(busted.left, true);
 });
+
+test('a seated non-host can deal the first hand while observers and later manual deals keep their permissions', () => {
+  const room = fixture();
+  assert.throws(() => command(room, ids[2], { type: 'deal' }, 11000), /Join the table/);
+  command(room, ids[1], { type: 'deal' }, 11000);
+  assert.equal(room.phase, 'preflop');
+  const turn = room.turn;
+  act(room, turn, 'fold', 0, 11001);
+  assert.equal(room.phase, 'showdown');
+  assert.throws(() => command(room, ids[1], { type: 'deal' }, room.payoutFinishedAt), /host/);
+});

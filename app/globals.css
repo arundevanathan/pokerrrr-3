@@ -5259,23 +5259,45 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .game-launch-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 12px;
-  row-gap: 12px;
+  gap: 14px 12px;
 }
 
 .simple-lobby .game-launch .game-launch-fields > label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   min-width: 0;
   margin: 0;
 }
 
 .game-launch-fields > label > :is(input, select) {
   width: 100%;
+  height: 44px;
   min-width: 0;
-  min-height: 44px;
+  margin: 0;
+  padding: 0 10px;
+  font-size: 16px;
 }
 
-.game-launch .game-launch-fields > label > small {
-  margin: 4px 0 0;
+.launch-blind-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.launch-blind-label small {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.simple-lobby .game-launch-fields > .primary {
+  justify-content: center;
+}
+
+.simple-lobby .game-launch .practice-row {
+  padding: 12px 0 0;
+  border: 0;
 }
 
 .game-launch-fields > :is(.game-options, .primary) {
