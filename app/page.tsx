@@ -667,7 +667,7 @@ export default function Home() {
                         {Array.from({
                           length: 5
                         }, (_, i) => {
-                          const shown = (myTurn && live) || effects.boardVisible(i, runIndex),
+                          const shown = effects.boardVisible(i, runIndex),
                             value = shown ? board[i] : undefined,
                             winningBoard = effects.resultReady && runIndex + 1 === focusedRunNumber ? focusedHand?.boardCards || [] : [],
                             timeline = runIndex === 1 ? effects.board2 : effects.board;

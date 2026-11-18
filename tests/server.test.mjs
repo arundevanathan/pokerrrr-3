@@ -452,3 +452,19 @@ test('completed hands archive starting stacks, private dealt cards and timestamp
     [next, 'fold', 'preflop', firstAt + 1, 0, false]
   ]);
 });
+
+test('empty closed games stay out of history, while a seated zero-hand game remains', async () => {
+  const { storage, service, players, code, send } = await fixture(1);
+  const host = players[0];
+  await send(host, 'end');
+  assert.ok(await storage.get(`session:${code}`));
+
+  const { snapshot } = await service.execute(host, commandEnvelope({
+    type: 'create', name: 'Host', rotation: 2, sb: 5, bb: 10, buyin: 1000, seats: 8, takeSeat: false
+  }));
+  await service.execute(host, commandEnvelope({ type: 'end', code: snapshot.code }, snapshot));
+  assert.equal(await storage.get(`session:${snapshot.code}`), undefined);
+  await storage.put(`session:${snapshot.code}`, { code: snapshot.code, closedAt: Date.now(), completed: 0, players: [] });
+  const history = await service.history();
+  assert.deepEqual(history.games.map(game => game.code), [code]);
+});

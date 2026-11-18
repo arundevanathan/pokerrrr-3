@@ -83,7 +83,7 @@ export class TableService {
     const active = await tx.get('active');
     if (room.phase === 'closed') {
       if (active === room.code) await tx.delete('active');
-      await tx.put(`session:${room.code}`, {
+      if (room.completed > 0 || room.players.length > 0) await tx.put(`session:${room.code}`, {
         code: room.code,
         createdAt: room.createdAt,
         closedAt: room.closedAt,
@@ -135,7 +135,7 @@ export class TableService {
         startAfter = [...page.keys()].at(-1);
       }
     }
-    return records.filter(r => r.closedAt >= start && r.closedAt < end).sort((a, b) => b.closedAt - a.closedAt || b.code.localeCompare(a.code));
+    return records.filter(r => r.closedAt >= start && r.closedAt < end && (r.completed !== 0 || r.players?.length !== 0)).sort((a, b) => b.closedAt - a.closedAt || b.code.localeCompare(a.code));
   }
   async history({
     from,
