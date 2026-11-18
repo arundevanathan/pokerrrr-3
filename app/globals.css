@@ -5279,18 +5279,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   font-size: 16px;
 }
 
-.launch-blind-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px;
-}
-
-.launch-blind-label small {
-  line-height: 1;
-  white-space: nowrap;
-}
-
 .simple-lobby .game-launch-fields > .primary {
   justify-content: center;
 }

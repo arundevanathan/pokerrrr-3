@@ -94,7 +94,7 @@ export function PlayerLobby({
             </label>)}
           </fieldset>
 
-          <label><span className="launch-blind-label">Big blind<small aria-hidden="true">SB {bb > 0 ? bb / 2 : 0}</small></span><input aria-label="Big blind" aria-describedby="launch-small-blind" type="number" min={2} max={100000} step={2} value={bb} onChange={e => setBb(Number(e.target.value))} required /><span id="launch-small-blind" className="sr-only">Small blind: {bb > 0 ? bb / 2 : 0}</span></label>
+          <label>Big blind<input type="number" min={2} max={100000} step={2} value={bb} onChange={e => setBb(Number(e.target.value))} required /></label>
 
           <label>Session length<select value={sessionMinutes} onChange={e => setSessionMinutes(Number(e.target.value))}>
             {[30, 60, 90].map(minutes => <option key={minutes} value={minutes}>{minutes} minutes</option>)}
