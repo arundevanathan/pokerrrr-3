@@ -5263,7 +5263,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   row-gap: 12px;
 }
 
-.simple-lobby .game-launch-fields > label {
+.simple-lobby .game-launch .game-launch-fields > label {
   min-width: 0;
   margin: 0;
 }
@@ -5274,7 +5274,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   min-height: 44px;
 }
 
-.game-launch-fields > label > small {
+.game-launch .game-launch-fields > label > small {
   margin: 4px 0 0;
 }
 
@@ -5294,5 +5294,23 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 @media (max-width: 600px) {
   .lobby.simple-lobby:has(> .game-launch) {
     padding: 12px 12px 24px;
+  }
+}
+
+@media (min-width: 601px) and (max-height: 500px) {
+  .lobby.simple-lobby:has(> .game-launch) {
+    max-width: 780px;
+    padding: 8px 12px 16px;
+  }
+  .simple-lobby > .game-launch {
+    max-width: none;
+    padding: 12px;
+  }
+  .game-launch-fields {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    row-gap: 8px;
+  }
+  .game-launch .practice-row {
+    padding: 8px 0 0;
   }
 }
