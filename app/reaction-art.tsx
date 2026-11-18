@@ -2,27 +2,29 @@ import { useId } from 'react';
 import { type ComponentType } from 'react';
 import { type PokerSound } from '../lib/poker-audio';
 const svgProps = { viewBox: '0 0 100 100', fill: 'none', 'aria-hidden': true as const };
-function Glass() {
-  const glass = useId();
-  const wine = useId();
+function BeerMug() {
+  const beer = useId();
   return <g>
     <defs>
-      <linearGradient id={glass}><stop stopColor="#e8eee3" stopOpacity=".35" /><stop offset=".42" stopColor="#e8eee3" stopOpacity=".04" /><stop offset="1" stopColor="#e8eee3" stopOpacity=".38" /></linearGradient>
-      <linearGradient id={wine} x2="0" y2="1"><stop stopColor="#98424d" /><stop offset="1" stopColor="#431d29" /></linearGradient>
+      <linearGradient id={beer}>
+        <stop stopColor="#ad601c" /><stop offset=".35" stopColor="#edb94a" /><stop offset=".7" stopColor="#cf861e" /><stop offset="1" stopColor="#98521a" />
+      </linearGradient>
     </defs>
-    <path d="M33 13C30 24 26 34 27 42Q29 57 50 59Q71 57 73 42C74 34 70 24 67 13Z" fill={`url(#${glass})`} stroke="#dedfd0" strokeWidth="1.6" />
-    <path d="M29 38Q49 42 71 38Q73 55 50 57Q28 55 29 38Z" fill={`url(#${wine})`} />
-    <ellipse cx="50" cy="38" rx="21" ry="2.7" fill="#853846" stroke="#b27075" strokeWidth=".8" />
-    <ellipse cx="50" cy="13" rx="17" ry="2.5" stroke="#f1eee0" strokeWidth="1.4" />
-    <path d="M36 19Q30 35 33 42M50 59V81" stroke="#f1eee0" strokeWidth="1.6" strokeLinecap="round" />
-    <ellipse cx="50" cy="82" rx="13" ry="2.2" fill="#d5dbcb49" stroke="#e0dfce" />
+    <path d="M67 34H76Q85 34 85 43V52Q85 63 68 64V57Q78 56 78 51V44Q78 40 68 41Z" fill="#c8d5cd" fillOpacity=".28" stroke="#e3dfcb" strokeWidth="2" />
+    <path d="M27 29H69L66 78Q66 84 60 84H36Q30 84 30 78Z" fill={`url(#${beer})`} stroke="#e3dfcb" strokeWidth="2" />
+    <path d="M31 77H65V81Q65 84 60 84H36Q32 84 31 81Z" fill="#f1d394" opacity=".65" />
+    <path d="M37 44L39 73M48 45V74M59 44L57 73" stroke="#ffe69c" strokeWidth="2.5" opacity=".6" strokeLinecap="round" />
+    <path d="M28 39Q20 37 23 28Q25 23 31 24Q33 15 43 18Q49 11 57 19Q67 17 72 25Q78 32 70 39H62V46Q60 51 56 46L55 39Z" fill="#f9efd6" stroke="#ead4aa" strokeWidth="1.3" />
   </g>;
 }
 export function CheersArt() {
-  return <svg {...svgProps}><g transform="translate(-14 0) rotate(14 50 52)"><Glass /></g><g transform="translate(14 0) rotate(-14 50 52)"><Glass /></g></svg>;
+  return <svg {...svgProps}>
+    <g transform="translate(67 13) scale(-.78 .78) rotate(-14 50 52)"><BeerMug /></g>
+    <g transform="translate(34 13) scale(.78) rotate(-14 50 52)"><BeerMug /></g>
+  </svg>;
 }
-function SingleGlass() {
-  return <svg {...svgProps}><Glass /></svg>;
+function SingleMug() {
+  return <svg {...svgProps}><BeerMug /></svg>;
 }
 function TomatoArt() {
   const skin = useId();
@@ -71,8 +73,8 @@ function PunchArt() {
 }
 function CheersAnimation() {
   return <>
-    <div className="cheers-glass cheers-sender"><SingleGlass /></div>
-    <div className="cheers-glass cheers-receiver"><SingleGlass /></div>
+    <div className="cheers-glass cheers-sender"><SingleMug /></div>
+    <div className="cheers-glass cheers-receiver"><SingleMug /></div>
   </>;
 }
 function TomatoAnimation() { return <><div className="social-flight tomato-flight"><TomatoArt /></div><div className="reaction-at-target tomato-splat"><TomatoSplat /></div></>; }

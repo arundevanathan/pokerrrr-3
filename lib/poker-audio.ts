@@ -7,16 +7,11 @@ const gameSamples = {
   'your-turn': '/sounds/your-turn.wav',
 } as const;
 type GameSample = keyof typeof gameSamples;
-// CC0 recording by sagetyrtle, trimmed and levelled.
-// https://commons.wikimedia.org/wiki/File:Laughter(s).ogg
-const samples = { ...gameSamples, laugh: '/sounds/reaction-laugh.mp3' } as const;
-type Sample = keyof typeof samples;
-
 export type PokerSound = GameSample | 'raise' | 'allin' | keyof typeof REACTIONS;
 export class PokerAudio {
   private context: AudioContext | null = null;
   private nodes = new Set<AudioScheduledSourceNode>();
-  private samples = new Map<Sample, Promise<AudioBuffer | null>>();
+  private samples = new Map<GameSample, Promise<AudioBuffer | null>>();
   enabled = true;
   constructor(private readonly preloadGameSounds = false) {}
   private generation = 0;
@@ -28,7 +23,7 @@ export class PokerAudio {
       this.context ??= new C();
       if (this.preloadGameSounds) {
         for (const kind of Object.keys(gameSamples) as GameSample[]) void this.loadSample(this.context, kind);
-      } else void this.loadSample(this.context, 'laugh');
+      }
       if (this.context?.state === 'suspended') void this.context.resume().catch(() => { });
     } catch {/* Audio is optional on browsers without Web Audio. */ }
   }
@@ -49,10 +44,10 @@ export class PokerAudio {
     this.nodes.add(node);
     node.onended = () => this.nodes.delete(node);
   }
-  private loadSample(ctx: AudioContext, kind: Sample) {
+  private loadSample(ctx: AudioContext, kind: GameSample) {
     let pending = this.samples.get(kind);
     if (!pending) {
-      pending = fetch(samples[kind]).then(response => {
+      pending = fetch(gameSamples[kind]).then(response => {
         if (!response.ok) throw new Error('Game audio unavailable');
         return response.arrayBuffer();
       }).then(bytes => ctx.decodeAudioData(bytes)).catch(() => {
@@ -79,17 +74,16 @@ export class PokerAudio {
     const social = Object.hasOwn(REACTIONS, kind) ? REACTIONS[kind as keyof typeof REACTIONS] : null;
     const impact = ctx.currentTime + Math.max(0, delayMs + (social?.impactAt || 0)) / 1000;
     const sample = kind === 'raise' || kind === 'allin' ? 'call' : kind;
-    if (Object.hasOwn(samples, sample)) {
-      const start = sample === 'laugh' ? impact : at;
+    if (Object.hasOwn(gameSamples, sample)) {
       const generation = this.generation;
-      void this.loadSample(ctx, sample as Sample).then(buffer => {
+      void this.loadSample(ctx, sample as GameSample).then(buffer => {
         if (!buffer || generation !== this.generation || !this.enabled ||
-            document.hidden || ctx.state !== 'running' || ctx.currentTime > start + (social ? .12 : .35)) return;
+            document.hidden || ctx.state !== 'running' || ctx.currentTime > at + .35) return;
         const src = ctx.createBufferSource();
         src.buffer = buffer;
         src.connect(ctx.destination);
         this.source(src);
-        src.start(Math.max(start, ctx.currentTime));
+        src.start(Math.max(at, ctx.currentTime));
       });
       return;
     }
@@ -114,10 +108,10 @@ export class PokerAudio {
       src.start(time);
       src.stop(time + duration);
     };
-    const tone = (time: number, frequency: number, duration: number, volume: number, decay = 1) => {
+    const tone = (time: number, frequency: number, duration: number, volume: number, decay = 1, waveform: OscillatorType = 'sine') => {
       const osc = ctx.createOscillator(),
         gain = ctx.createGain();
-      osc.type = 'sine';
+      osc.type = waveform;
       osc.frequency.setValueAtTime(frequency, time);
       osc.frequency.exponentialRampToValueAtTime(frequency * decay, time + duration);
       gain.gain.setValueAtTime(.001, time);
@@ -137,9 +131,17 @@ export class PokerAudio {
     } else if (kind === 'cheers') {
       // Glass rings at stable frequencies. The short attack is the rims touching.
       noise(impact, .015, 5100, .055);
-      tone(impact, 2348, .24, .065);
-      tone(impact + .005, 3817, .13, .035);
-      tone(impact + .011, 2910, .19, .022);
+      tone(impact, 1700, .2, .065);
+      tone(impact + .005, 2920, .11, .035);
+      tone(impact + .011, 2200, .15, .022);
+    } else if (kind === 'laugh') {
+      // Three springy, descending cartoon chuckles.
+      [490, 560, 420].forEach((pitch, index) => {
+        const onset = impact + index * .13;
+        tone(onset, pitch, .115, .075, .67, 'triangle');
+        tone(onset + .014, pitch * 2, .078, .035, .60);
+        noise(onset, .055, 1400, .055);
+      });
     } else if (kind === 'tomato') {
       // Initial soft crush with short, irregular wet transients and a pulp tail.
       noise(impact, .11, 580, .19);

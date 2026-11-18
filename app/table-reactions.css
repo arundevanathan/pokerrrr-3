@@ -71,7 +71,7 @@
 }
 .cheers-sender { --glass-from-x: var(--reaction-from-x); --glass-from-y: var(--reaction-from-y); }
 .cheers-receiver { --glass-side: calc(-1 * var(--cheers-side)); --glass-from-x: var(--reaction-to-x); --glass-from-y: var(--reaction-to-y); }
-.cheers-glass svg { width: 100%; height: 100%; filter: drop-shadow(0 2px 3px #0007); }
+.cheers-glass svg { transform: scaleX(var(--glass-side)); width: 100%; height: 100%; filter: drop-shadow(0 2px 3px #0007); }
 .tomato-flight { width: 50px; height: 50px; animation-name: tomato-throw; }
 .tomato-splat { width: 88px; height: 88px; opacity: 0; animation: tomato-splat var(--reaction-duration) ease-out var(--reaction-delay) both; }
 .laugh-flight { animation-name: laugh-arrive; }

@@ -887,8 +887,8 @@ export default function Home() {
       {notice}
     </div>}
 
-    {panel && <div className={`modal-backdrop ${room && !finalRankings && ['info', 'ledger'].includes(panel) ? 'table-sheet-backdrop' : ''}`} onClick={closeTablePanel}>
-      <section role="dialog" aria-modal="true" aria-label={panel === 'confirm' ? (confirm === 'stand_up' ? 'Confirm stand up' : 'Confirm terminate game') : panel === 'ledger' ? (finalRankings ? 'Final Game Rankings' : 'Current Game Rankings') : panel === 'info' ? 'Game Info' : 'Table controls'} className={`modal ${panel === 'menu' ? 'compact-menu' : ''} ${panel === 'confirm' ? 'confirmation-dialog' : ''} ${panel === 'ledger' ? 'wide' : ''} ${finalRankings ? 'final-rankings' : room && ['info', 'ledger'].includes(panel) ? 'table-sheet' : ''}`} onClick={e => e.stopPropagation()}>
+    {panel && <div className={`modal-backdrop ${room && panel === 'info' ? 'table-sheet-backdrop' : ''}`} onClick={closeTablePanel}>
+      <section role="dialog" aria-modal="true" aria-label={panel === 'confirm' ? (confirm === 'stand_up' ? 'Confirm stand up' : 'Confirm terminate game') : panel === 'ledger' ? (finalRankings ? 'Final Game Rankings' : 'Current Game Rankings') : panel === 'info' ? 'Game Info' : 'Table controls'} className={`modal ${panel === 'menu' ? 'compact-menu' : ''} ${panel === 'confirm' ? 'confirmation-dialog' : ''} ${panel === 'ledger' ? 'wide rankings-card' : room && panel === 'info' ? 'table-sheet' : ''}`} onClick={e => e.stopPropagation()}>
         <button className="modal-close icon-button" onClick={closeTablePanel} aria-label={finalRankings ? "Close and return to lobby" : "Close"}>
           <X size={20} />
         </button>
@@ -1066,7 +1066,7 @@ export default function Home() {
             </table>
           </div>
           {live && <small>Chips in the current pot are excluded from player stacks until the hand ends.</small>}
-          <button className="secondary full" onClick={() => {
+          {finalRankings && <button className="secondary full" onClick={() => {
             const lines = [['Player', 'Buy-ins', 'Stack', 'Cash-out', 'Net'], ...room.players.map((p: any) => [p.name, p.buyins, p.stack, p.cashout, p.net])];
             const csv = lines.map(row => row.map((v: any) => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n'),
               url = URL.createObjectURL(new Blob([csv], {
@@ -1077,7 +1077,7 @@ export default function Home() {
             a.download = `dunzo-club-${room.code}.csv`;
             a.click();
             URL.revokeObjectURL(url);
-          }}><Download size={16} /> Export Rankings CSV</button>
+          }}><Download size={16} /> Export Rankings CSV</button>}
         </>}
 
         {panel === 'history' && <>

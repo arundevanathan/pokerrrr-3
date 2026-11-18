@@ -5231,20 +5231,21 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   color: #a6ada1;
 }
 
-.modal.final-rankings {
+.modal.rankings-card {
   width: min(100%, 720px);
   max-width: 720px;
   max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   padding: clamp(12px, 4vw, 24px);
 }
-.final-rankings h2 {
+.rankings-card h2 {
   margin: 0 36px 6px 0;
   font-size: clamp(20px, 5vw, 30px);
 }
-.final-rankings > p { margin: 0; }
-.final-rankings .ledger-scroll { margin: 10px 0; }
-.final-rankings td, .final-rankings th { padding: clamp(4px, 1.2dvh, 10px) 5px; }
-.final-rankings td:first-child { white-space: normal; overflow-wrap: anywhere; }
+.rankings-card > p { margin: 0; }
+.rankings-card .ledger-scroll { margin: 8px 0; }
+.rankings-card td, .rankings-card th { padding: clamp(3px, 1dvh, 8px) 5px; }
+.rankings-card > small { display: block; }
+.rankings-card td:first-child { white-space: normal; overflow-wrap: anywhere; }
 
 /* Keep the full game setup and its primary action above the fold on phones. */
 .simple-lobby .game-launch {
@@ -5276,7 +5277,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   min-width: 0;
   margin: 0;
   padding: 0 10px;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .simple-lobby .game-launch-fields > .primary {
