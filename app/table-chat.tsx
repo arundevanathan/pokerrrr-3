@@ -36,15 +36,21 @@ export function ChatDrawer({ room, social, myTurn }: { room: SocialRoom; social:
   const composing = social.open && room.phase !== 'closed';
   const close = () => { social.setOpen(false); social.closeHistory(); };
   const input = useRef<HTMLInputElement>(null);
+  const restoreTriggerFocus = useRef(true);
   const history = useRef<HTMLElement>(null);
   useEffect(() => {
     if (room.phase === 'closed' && social.open) { social.setOpen(false); social.openHistory(); }
   }, [room.phase, social.open]);
   useLayoutEffect(() => {
     if (!visible) return;
+    restoreTriggerFocus.current = true;
     const previous = document.activeElement;
     if (!composing) history.current?.querySelector<HTMLButtonElement>('[aria-label="Close game chat"]')?.focus();
-    return () => { if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true }); };
+    return () => {
+      if (restoreTriggerFocus.current && previous instanceof HTMLElement && previous.isConnected) {
+        previous.focus({ preventScroll: true });
+      }
+    };
   }, [visible, composing]);
   useLayoutEffect(() => {
     if (!visible) return;
@@ -124,6 +130,7 @@ export function ChatDrawer({ room, social, myTurn }: { room: SocialRoom; social:
     {composing && <form className="chat-compose" onSubmit={async e => {
       e.preventDefault();
       if (!await social.send(draft)) return;
+      restoreTriggerFocus.current = false;
       setDraft(current => current === draft ? '' : current);
       input.current?.blur();
       close();
