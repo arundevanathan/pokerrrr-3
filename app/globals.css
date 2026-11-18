@@ -5284,3 +5284,18 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   background: #1b2921;
   color: #a6ada1;
 }
+
+.modal.final-rankings {
+  width: min(100%, 720px);
+  max-width: 720px;
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding: clamp(12px, 4vw, 24px);
+}
+.final-rankings h2 {
+  margin: 0 36px 6px 0;
+  font-size: clamp(20px, 5vw, 30px);
+}
+.final-rankings > p { margin: 0; }
+.final-rankings .ledger-scroll { margin: 10px 0; }
+.final-rankings td, .final-rankings th { padding: clamp(4px, 1.2dvh, 10px) 5px; }
+.final-rankings td:first-child { white-space: normal; overflow-wrap: anywhere; }

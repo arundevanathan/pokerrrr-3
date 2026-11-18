@@ -91,6 +91,12 @@ export default function Home() {
     [selectedRun, setSelectedRun] = useState(0),
     [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const appViewport = useAppViewport(Boolean(room));
+  const finalRankings = panel === 'ledger' && room?.phase === 'closed';
+  useEffect(() => {
+    if (room?.phase !== 'closed') return;
+    setConfirm('');
+    setPanel('ledger');
+  }, [room?.code, room?.phase]);
   const queuedAction = useRef<{ choice: 'fold' | 'check-fold' | 'check'; player: string; code: string; hand: number; phase: string } | null>(null);
   const audio = useRef<PokerAudio | null>(null);
   if (!audio.current) audio.current = new PokerAudio(true);
@@ -873,11 +879,11 @@ export default function Home() {
       {notice}
     </div>}
 
-    {panel && <div className={`modal-backdrop ${room && ['info', 'ledger'].includes(panel) ? 'table-sheet-backdrop' : ''}`} onClick={() => {
+    {panel && <div className={`modal-backdrop ${room && !finalRankings && ['info', 'ledger'].includes(panel) ? 'table-sheet-backdrop' : ''}`} onClick={() => {
       setPanel('');
       setConfirm('');
     }}>
-      <section role="dialog" aria-modal="true" aria-label={panel === 'confirm' ? (confirm === 'stand_up' ? 'Confirm stand up' : 'Confirm terminate game') : panel === 'ledger' ? 'Current Game Rankings' : panel === 'info' ? 'Game Info' : 'Table controls'} className={`modal ${panel === 'menu' ? 'compact-menu' : ''} ${panel === 'confirm' ? 'confirmation-dialog' : ''} ${panel === 'ledger' ? 'wide' : ''} ${room && ['info', 'ledger'].includes(panel) ? 'table-sheet' : ''}`} onClick={e => e.stopPropagation()}>
+      <section role="dialog" aria-modal="true" aria-label={panel === 'confirm' ? (confirm === 'stand_up' ? 'Confirm stand up' : 'Confirm terminate game') : panel === 'ledger' ? (finalRankings ? 'Final Game Rankings' : 'Current Game Rankings') : panel === 'info' ? 'Game Info' : 'Table controls'} className={`modal ${panel === 'menu' ? 'compact-menu' : ''} ${panel === 'confirm' ? 'confirmation-dialog' : ''} ${panel === 'ledger' ? 'wide' : ''} ${finalRankings ? 'final-rankings' : room && ['info', 'ledger'].includes(panel) ? 'table-sheet' : ''}`} onClick={e => e.stopPropagation()}>
         <button className="modal-close icon-button" onClick={() => {
           setPanel('');
           setConfirm('');
@@ -1002,7 +1008,7 @@ export default function Home() {
             <button className="primary" disabled={controlsBusy || Boolean(room.terminationPending)} onClick={async () => {
               if (await send(confirm)) {
                 setConfirm('');
-                setPanel('');
+                setPanel(openPanel => openPanel === 'confirm' ? '' : openPanel);
               }
             }}>{busy ? 'Processing…' : confirm === 'stand_up' ? 'Stand Up' : 'Terminate Game'}</button></div>
           {error && <p className="error" role="alert">{error}</p>}
@@ -1021,7 +1027,7 @@ export default function Home() {
         </>}
 
         {panel === 'ledger' && <>
-          <h2>Current Game Rankings</h2>
+          <h2>{finalRankings ? 'Final Game Rankings' : 'Current Game Rankings'}</h2>
           <p>
             {room.phase === 'closed' ? 'Final balances. Payments happen outside the app.' : 'Live balances. Final settlement is calculated when the game ends.'}
           </p>
