@@ -90,7 +90,6 @@ export default function Home() {
     [confirm, setConfirm] = useState(''),
     [sound, setSound] = useState(true),
     [preaction, setPreaction] = useState<'fold' | 'check-fold' | 'check' | null>(null),
-    [peekingCards, setPeekingCards] = useState(false),
     [selectedWinner, setSelectedWinner] = useState(''),
     [selectedShortcut, setSelectedShortcut] = useState(''),
     [selectedRun, setSelectedRun] = useState(0),
@@ -103,11 +102,6 @@ export default function Home() {
     setPanel('ledger');
   }, [room?.code, room?.phase]);
   const queuedAction = useRef<{ choice: 'fold' | 'check-fold' | 'check'; player: string; code: string; hand: number; phase: string } | null>(null);
-  const peekPointer = useRef<{ id: number; startY: number } | null>(null);
-  useEffect(() => {
-    peekPointer.current = null;
-    setPeekingCards(false);
-  }, [room?.handStartedAt, room?.phase]);
   const audio = useRef<PokerAudio | null>(null);
   if (!audio.current) audio.current = new PokerAudio(true);
   const socialAudio = useRef<PokerAudio | null>(null);
@@ -640,6 +634,13 @@ export default function Home() {
   const displayedCall = myTurn ? (l?.call || 0) : waitingCall;
   const canQueueAction = Boolean(!myTurn && me?.inHand && !me.folded && !me.away && me.stack > 0);
   const clampRaise = (v: number) => Math.min(raiseMax, Math.max(raiseMin, Math.round(v || raiseMin)));
+  const personalHand = <div className="personal-hand" aria-label="Your cards">
+    <div className={`personal-hole-cards cards-${me?.cards?.length || 0}`}>
+      {me?.inHand && me.cards?.length ? sortedHoleCards(me.cards).map((c: number, i: number) => <span className="personal-card-wrap" style={{ zIndex: i + 1 }} key={`${room.handStartedAt || 0}:${i}`}>
+        <Card value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
+      </span>) : <span className="personal-cards-placeholder">{room?.game || 'NLH'} · Your cards</span>}
+    </div>
+  </div>;
   return <div ref={appViewport} className={`app ${room ? 'in-game' : ''} ${social.open ? 'chat-active' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
 
     <header className="topbar">
@@ -850,41 +851,7 @@ export default function Home() {
                 {enableReactions && <ChatButton social={social} readOnly={room.phase === 'closed'} />}
               </div>
             </div>
-            {seated && <div className="personal-hand" aria-label="Your cards">
-              <div
-                className={`personal-hole-cards ${peekingCards ? 'is-peeking' : 'is-concealed'}`}
-                aria-label={me?.inHand && me.cards?.length ? 'Your cards. Slide upward and hold to peek.' : 'Your cards'}
-                onPointerDown={e => {
-                  if (!me?.inHand || !me.cards?.length || (e.pointerType === 'mouse' && e.button !== 0)) return;
-                  peekPointer.current = { id: e.pointerId, startY: e.clientY };
-                  e.currentTarget.setPointerCapture?.(e.pointerId);
-                }}
-                onPointerMove={e => {
-                  const pointer = peekPointer.current;
-                  if (!pointer || pointer.id !== e.pointerId) return;
-                  if (e.clientY <= pointer.startY - 18) setPeekingCards(true);
-                }}
-                onPointerUp={e => {
-                  if (peekPointer.current?.id !== e.pointerId) return;
-                  peekPointer.current = null;
-                  setPeekingCards(false);
-                  e.currentTarget.releasePointerCapture?.(e.pointerId);
-                }}
-                onPointerCancel={() => {
-                  peekPointer.current = null;
-                  setPeekingCards(false);
-                }}
-                onLostPointerCapture={() => {
-                  peekPointer.current = null;
-                  setPeekingCards(false);
-                }}
-              >
-                {me?.inHand && me.cards?.length ? sortedHoleCards(me.cards).map((c: number, i: number, cards: number[]) => <span className="personal-card-wrap" style={{ '--fan-angle': `${(i - (cards.length - 1) / 2) * 7}deg`, '--fan-lift': `${Math.abs(i - (cards.length - 1) / 2) * -3}px`, zIndex: i + 1 } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
-                  <Card value={c} back={!peekingCards} small highlight={Boolean(peekingCards && effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(peekingCards && effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
-                </span>) : <span className="personal-cards-placeholder">{room.game || 'NLH'} · Your cards</span>}
-                {me?.inHand && me.cards?.length && !peekingCards && <span className="peek-cards-hint" aria-hidden="true">Slide up and hold to peek</span>}
-              </div>
-            </div>}
+            {seated && (!live || voting) && personalHand}
             {me?.pendingSeatAction === 'leave' && <p className="game-status" role="status">Standing up after this hand and payouts. <button className="text-button" disabled={controlsBusy || room.terminationPending} onClick={() => send('cancel_stand_up')}>Cancel</button></p>}
             {room.terminationPending && <p className="game-status" role="status">Game will terminate after this hand.</p>}
             {!seated && room.phase !== 'closed' ? <>
@@ -903,26 +870,25 @@ export default function Home() {
               </div>}
               {voting ? null : live ? <>
                 <div className="betting-controls">
-                  <div className="slider-shortcuts">
-                    <div className="raise-display" aria-live="polite">
-                      <small>Raise to</small>
-                      <strong>{myTurn && l?.canRaise ? fmt(raise) : '—'}</strong>
-                    </div>
-                    <div className="quick-bets" aria-label="Raise shortcuts">
-                      {([['½', .5], ['Pot', 1], ['2×', 2], ['3×', 3], ['5×', 5]] as const).map(([label, n]) => <button className="bet-shortcut" key={label} title={label === '½' ? 'Half pot' : label === 'Pot' ? 'Pot-sized bet' : `${label} pot`} disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === label} onClick={() => {
-                        setSelectedShortcut(label); setRaise(shortcutRaiseTo(current.current, token.current, n));
-                      }}>{label}</button>)}
-                      <button className="bet-shortcut" title="All-in" disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === 'All'} onClick={() => { setSelectedShortcut('All'); setRaise(l.max); }}>All</button>
-                    </div>
-                    <div className="raise-slider-control">
-                      <input type="range" aria-label="Raise amount slider" min={0} max={1000} step={1} value={raiseMax > raiseMin ? Math.round(Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 1000) : 0} disabled={!myTurn || controlsBusy || !l?.canRaise || raiseMin === raiseMax} onChange={e => {
-                        setSelectedShortcut('');
-                        const fraction = Number(e.target.value) / 1000;
-                        const raw = raiseMin + (raiseMax - raiseMin) * fraction * fraction;
-                        const blind = Math.max(1, Number(room.settings?.bb || 50));
-                        const snapped = Math.round(raw / blind) * blind;
-                        setRaise(Number(e.target.value) === 1000 ? raiseMax : clampRaise(snapped));
-                      }} style={{ '--range-fill': `${raiseMax > raiseMin ? Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 100 : 0}%` } as React.CSSProperties} />
+                  <div className="hand-and-raise">
+                    {personalHand}
+                    <div className="slider-shortcuts">
+                      <div className="quick-bets" aria-label="Raise shortcuts">
+                        {([['½', .5], ['Pot', 1], ['2×', 2], ['3×', 3], ['5×', 5]] as const).map(([label, n]) => <button className="bet-shortcut" key={label} title={label === '½' ? 'Half pot' : label === 'Pot' ? 'Pot-sized bet' : `${label} pot`} disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === label} onClick={() => {
+                          setSelectedShortcut(label); setRaise(shortcutRaiseTo(current.current, token.current, n));
+                        }}>{label}</button>)}
+                        <button className="bet-shortcut" title="All-in" disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === 'All'} onClick={() => { setSelectedShortcut('All'); setRaise(l.max); }}>All</button>
+                      </div>
+                      <div className="raise-slider-control">
+                        <input type="range" aria-label="Raise amount slider" aria-valuetext={fmt(raiseValue)} min={0} max={1000} step={1} value={raiseMax > raiseMin ? Math.round(Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 1000) : 0} disabled={!myTurn || controlsBusy || !l?.canRaise || raiseMin === raiseMax} onChange={e => {
+                          setSelectedShortcut('');
+                          const fraction = Number(e.target.value) / 1000;
+                          const raw = raiseMin + (raiseMax - raiseMin) * fraction * fraction;
+                          const blind = Math.max(1, Number(room.settings?.bb || 50));
+                          const snapped = Math.round(raw / blind) * blind;
+                          setRaise(Number(e.target.value) === 1000 ? raiseMax : clampRaise(snapped));
+                        }} style={{ '--range-fill': `${raiseMax > raiseMin ? Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 100 : 0}%` } as React.CSSProperties} />
+                      </div>
                     </div>
                   </div>
                   <div className="action-buttons">
