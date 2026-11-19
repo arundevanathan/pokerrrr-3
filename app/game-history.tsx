@@ -181,12 +181,14 @@ export function GameHistory({
 
     <div className="history-toolbar">
       <h2>Previous Games</h2>
-      <button className="primary" onClick={() => setOpen(true)}>Settle Up</button>
+      <div className="history-toolbar-actions">
+        {!demo && <button className="secondary" onClick={() => {
+          setExportError('');
+          setExportOpen(true);
+        }}>Export Hand Data</button>}
+        <button className="secondary" onClick={() => setOpen(true)}>Settle Up</button>
+      </div>
     </div>
-    {!demo && <button className="secondary history-export-button" onClick={() => {
-      setExportError('');
-      setExportOpen(true);
-    }}>Export Hand Data</button>}
 
     {exportOpen && <div className="modal-backdrop" onClick={() => { if (!exporting) setExportOpen(false); }}>
       <section className="modal" role="dialog" aria-modal="true" aria-labelledby="export-heading" onClick={e => e.stopPropagation()}>
