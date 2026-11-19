@@ -1,5 +1,55 @@
 # Changelog
 
+## v2.1.10 — 19 November 2026
+
+- Use smaller text for Start Game options.
+- Show Current Game Rankings in a taller, compact card and remove its CSV export button.
+- Use a cartoon chuckle for Haha and foamy beer mugs for Cheers.
+
+[Release notes](docs/releases/v2.1.10.md)
+
+## v2.1.9 — 18 November 2026
+
+- Deal the first hand from any occupied seat. Each buy-in and reload is capped at 100 big blinds. Players can reload again and build larger stacks.
+- Free the seat of a busted, disconnected player after two more hands. Closing final rankings returns to the lobby.
+- Fit game setup on portrait phones. Open and close table chat without shifting the game view, and clear the chat button highlight after sending.
+- Flip flop cards in order, sort revealed hole cards by rank, and suppress the turn sound for queued actions.
+- Update Chappal, Tomato Splat, Laughing Face, and Punch. Keep Cheers and remove Money Flying, Crown, and Duck from the picker.
+
+[Release notes](docs/releases/v2.1.9.md)
+
+## v2.1.8 — 18 November 2026
+
+- Keep mobile betting controls and seat action labels visible.
+- Improve session extension buttons, reveal flop cards in sequence, and expose opponents’ suits at showdown.
+- Remove initials above seats without cards, omit empty games from history, and automatically open an expanded final rankings card.
+
+[Release notes](docs/releases/v2.1.8.md)
+
+## v2.1.7 — 18 November 2026
+
+- Use the recorded Call, Check, Your Turn, Deal and Win sounds. Bets, raises and all-ins use Call. Folds and community-card reveals are silent.
+- Deal NLH, PLO4 and PLO5 in the same 1.46 seconds.
+- Recover missed chat messages after reconnect, retry uncertain sends without duplicating a confirmed message, and show unread chat and delivery status.
+- Archive starting seats and stacks, timestamped betting actions, and dealt cards for newly started hands. The additional hand records are server-only.
+
+Full release notes: [v2.1.7](docs/releases/v2.1.7.md).
+
+## v2.1.6 — 17 November 2026
+
+- Add timed sessions with extensions, automatic sit-out after two disconnected turn timeouts, and same-game re-entry at the last positive cash-out.
+- Let players already sitting out stand up immediately when they are outside the current hand.
+- Sort hole cards by rank, improve suit and turn-timer visibility, fix Run It Twice card layout, and keep the table layout stable during showdown.
+- Animate tied payouts together, recover missed chat messages, and suppress stale sounds when opening or resuming a table.
+
+Full release notes: [v2.1.6](docs/releases/v2.1.6.md).
+
+## v2.1.5 — 16 November 2026
+
+- Remove View Game Chat from completed game results in production.
+
+Full release notes: [v2.1.5](docs/releases/v2.1.5.md).
+
 ## v2.1.4 — 16 November 2026
 
 - Send a pending bet over a recovered live connection immediately, even while the HTTP request is still waiting.

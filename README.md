@@ -1,6 +1,6 @@
 # Dunzo Club
 
-Current release: **v2.1.4**. See the [changelog](CHANGELOG.md) and [release notes](docs/releases/v2.1.4.md).
+Current release: **v2.1.10**. See the [changelog](CHANGELOG.md) and [release notes](docs/releases/v2.1.10.md).
 
 Private mixed poker for one group of 6–8 friends. One active session at a time;
 Choose NLH, PLO4 and/or PLO5, rotating through the selected games every 2–4 completed hands. Set an even big blind; the server calculates the small blind as half. Defaults: 25/50 blinds and

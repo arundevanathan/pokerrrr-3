@@ -5007,7 +5007,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
 
 /* Compact mobile action deck: status, full-width cards, slider + shortcuts, actions. */
 .in-game .play-area {
-  --action-height: 246px;
+  --action-height: 322px;
   --action-bottom-padding: 7px;
   grid-template-rows: 32px minmax(0,1fr) calc(var(--action-height) + var(--table-safe-bottom, env(safe-area-inset-bottom)));
 }
@@ -5028,9 +5028,15 @@ html:has(.app.in-game),body:has(.app.in-game) {
   gap:clamp(3px,1.1vw,7px); min-width:0; width:100%;
 }
 .in-game .personal-hole-cards .card.small {
-  flex:0 1 auto; width:clamp(52px,15vw,76px); height:96px;
+  flex:0 1 auto; width:min(15vw, 70px); height:auto; aspect-ratio: 5 / 7;
   min-width:0; padding:4px; transform:none; margin:0;
 }
+.in-game .personal-hole-cards .personal-card-wrap {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.in-game .personal-hole-cards .personal-card-wrap .card.small { max-width: 100%; }
 .in-game .personal-hole-cards .card.small b {font-size:clamp(20px,5.8vw,28px);}
 .in-game .personal-hole-cards .card.small>span {font-size:clamp(22px,6.5vw,30px);}
 .in-game .personal-stack {display:none;}
@@ -5075,7 +5081,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
 .in-game .table-stage.two-runouts .runout-boards {gap:6px;}
 .in-game .table-stage.two-runouts .board-zone {padding-bottom:0;}
 @media(max-width:620px) {
- .in-game .play-area {--action-height:241px; grid-template-rows:30px minmax(0,1fr) calc(var(--action-height) + var(--table-safe-bottom, env(safe-area-inset-bottom)));}
+ .in-game .play-area {--action-height:317px; grid-template-rows:30px minmax(0,1fr) calc(var(--action-height) + var(--table-safe-bottom, env(safe-area-inset-bottom)));}
  .in-game .rotation-bar {height:30px; min-height:30px;}
  .in-game .action-zone {height:calc(var(--action-height) + var(--table-safe-bottom, env(safe-area-inset-bottom))); padding:4px 8px calc(5px + var(--table-safe-bottom, env(safe-area-inset-bottom))); gap:4px;}
  .in-game .personal-hand {flex-basis:101px; height:101px;}
@@ -5084,7 +5090,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
  .in-game .action-buttons>button {height:54px; min-height:54px;}
 }
 @media(max-height:700px) {
- .in-game .play-area {--action-height:217px; grid-template-rows:28px minmax(0,1fr) calc(var(--action-height) + var(--table-safe-bottom, env(safe-area-inset-bottom)));}
+ .in-game .play-area {--action-height:292px; grid-template-rows:28px minmax(0,1fr) calc(var(--action-height) + var(--table-safe-bottom, env(safe-area-inset-bottom)));}
  .in-game .rotation-bar {height:28px; min-height:28px;}
  .in-game .personal-hand {flex-basis:80px; height:80px;}
  .in-game .personal-hole-cards .card.small {height:75px; width:clamp(44px,14vw,60px);}
@@ -5102,6 +5108,136 @@ html:has(.app.in-game),body:has(.app.in-game) {
 }
 .in-game .action-zone > * { flex-shrink: 0; }
 .in-game .slider-shortcuts, .in-game .action-buttons { flex-shrink: 0; }
+
+/* Keep hole cards and bet sizing in one row above the full-width actions. */
+.in-game .hand-and-raise {
+  --bet-sizing-height: clamp(116px, 17dvh, 154px);
+  --slider-width: clamp(34px, 10vw, 44px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(114px, 39%, 192px);
+  gap: 7px;
+  align-items: stretch;
+  min-height: var(--bet-sizing-height);
+}
+.in-game .hand-and-raise .personal-hand {
+  container-type: inline-size;
+  height: var(--bet-sizing-height);
+  min-width: 0;
+  padding: 1px 0;
+}
+.in-game .hand-and-raise .personal-hole-cards {
+  --card-width: min(calc((100cqw - 5px) / 2), calc((var(--bet-sizing-height) - 2px) * 5 / 7));
+  height: 100%;
+  gap: 5px;
+}
+.in-game .hand-and-raise .personal-card-wrap {
+  flex: 0 0 var(--card-width);
+  min-width: 0;
+  position: relative;
+}
+.in-game .hand-and-raise .personal-hole-cards .card.small {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  padding: 6px;
+  border-radius: 9px;
+}
+.in-game .hand-and-raise :is(.cards-4, .cards-5) {
+  --card-width: min(44cqw, calc((var(--bet-sizing-height) - 2px) * 5 / 7));
+  --card-step: min(36px, calc((100cqw - var(--card-width)) / 3));
+  gap: 0;
+}
+.in-game .hand-and-raise .cards-5 {
+  --card-width: min(39cqw, calc((var(--bet-sizing-height) - 2px) * 5 / 7));
+  --card-step: min(36px, calc((100cqw - var(--card-width)) / 4));
+}
+.in-game .hand-and-raise :is(.cards-4, .cards-5) .personal-card-wrap:not(:first-child) {
+  margin-inline-start: min(0px, calc(var(--card-step) - var(--card-width)));
+}
+.app.in-game .hand-and-raise :is(.cards-4, .cards-5) .card.small {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 6px 3px;
+  gap: 3px;
+}
+.app.in-game .hand-and-raise :is(.cards-4, .cards-5) .card.small > :is(b, span) {
+  align-self: flex-start;
+  margin: 0;
+  font-size: clamp(12px, calc((var(--card-step) - 4px) * .74), 23px);
+  line-height: 1;
+}
+.in-game .hand-and-raise .slider-shortcuts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--slider-width);
+  align-items: stretch;
+  gap: 4px;
+  height: var(--bet-sizing-height);
+  min-height: 0;
+}
+.in-game .hand-and-raise .quick-bets {
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+.in-game .hand-and-raise .quick-bets > button {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #d9bb8260;
+  border-radius: 8px;
+  background: #20362a;
+  font-size: clamp(11px, 3.4vw, 15px);
+}
+.in-game .hand-and-raise .quick-bets > .all-in-shortcut { grid-column: 1 / -1; }
+.in-game .hand-and-raise .quick-bets > button[aria-pressed="true"] {
+  border-color: var(--gold);
+  background: #3c5336;
+}
+.in-game .hand-and-raise .raise-slider-control {
+  grid-area: 1 / 2;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #d9bb8270;
+  border-radius: 12px;
+  background: #19271f;
+}
+.in-game .hand-and-raise .raise-slider-control input[type=range] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--bet-sizing-height) - 12px);
+  height: calc(var(--slider-width) - 4px);
+  writing-mode: horizontal-tb;
+  direction: ltr;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  cursor: ns-resize;
+  touch-action: none;
+}
+.in-game .hand-and-raise .raise-slider-control input[type=range]::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--gold) var(--range-fill), #ffffff19 var(--range-fill));
+}
+.in-game .hand-and-raise + .action-buttons > button.primary {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  column-gap: 4px;
+  row-gap: 0;
+}
+.in-game .hand-and-raise + .action-buttons > .primary > span {
+  font-size: inherit;
+  line-height: 1.1;
+}
 
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
@@ -5325,3 +5461,69 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     padding: 8px 0 0;
   }
 }
+
+/* A post-flop uncontested hand can expose one tappable Rabbit Hunt card.
+   It occupies the next board slot, so the table geometry never jumps. */
+.rabbit-hunt-trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gold);
+  cursor: pointer;
+}
+.rabbit-hunt-trigger .card { pointer-events: none; }
+.rabbit-hunt-trigger>b {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  right: -8px;
+  top: -9px;
+  min-width: 25px;
+  padding: 3px 5px;
+  border: 1px solid var(--gold);
+  border-radius: 99px;
+  background: #14221c;
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rabbit-hunt-trigger:focus-visible { outline: 3px solid #ffdc52; outline-offset: 3px; }
+.two-runouts .runout-boards { max-height: 100%; overflow: hidden; }
+@media (max-width: 380px), (max-height: 560px) {
+  .in-game .table-stage.two-runouts .runout-boards { gap: 3px; }
+  .in-game .table-stage.two-runouts .board-cards>.board-card-wrap>.card { width: 24px; height: 34px; }
+  .in-game .table-stage.two-runouts .board-cards .card b { font-size: 11px; }
+  .in-game .table-stage.two-runouts .board-cards .card>span { font-size: 14px; }
+}
+
+
+.history-export-button { margin-block: 4px 12px; }
+.hand-export-options, .hand-export-games {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  border: 0;
+}
+.hand-export-options legend, .hand-export-games legend {
+  color: var(--muted);
+  font-size: 13px;
+}
+.hand-export-options > label, .hand-export-games > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: 0;
+}
+.hand-export-options input, .hand-export-games input {
+  appearance: auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--gold);
+}
+.hand-export-games { max-height: 36dvh; overflow-y: auto; }

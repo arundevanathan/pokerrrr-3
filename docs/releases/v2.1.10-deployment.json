@@ -1,0 +1,11 @@
+{
+  "tag": "v2.1.10",
+  "commit": "af589a546ff08a257cf0edcebea29aa08d6716de",
+  "workerVersion": "bce9f9e5-2c5a-4157-93ce-da1055231ea9",
+  "deploymentId": "7fea5f5e-a1bb-495d-8bb5-06de4bad04db",
+  "rollbackVersion": "0ebea32e-5412-4293-ae55-830ea08c74a7",
+  "verifiedAt": "2026-11-19T04:03:45.768Z",
+  "productionUrl": "https://dunzo-club.arun-devanathan.workers.dev/",
+  "trafficPercent": 100,
+  "validation": "139 tests, TypeScript, production artifact checks, local multiplayer smoke, GitHub CI, and production health verification passed."
+}
