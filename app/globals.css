@@ -5527,3 +5527,52 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   accent-color: var(--gold);
 }
 .hand-export-games { max-height: 36dvh; overflow-y: auto; }
+
+
+/* Hole-card indices share a fixed visible column in overlapping Omaha hands. */
+.app.in-game .hand-and-raise .personal-hole-cards .card.small {
+  position: relative;
+}
+.app.in-game .hand-and-raise .cards-2 .card.small > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: clamp(32px, 15cqw, 54px);
+  line-height: 1;
+}
+.app.in-game .hand-and-raise :is(.cards-4, .cards-5) .card.small {
+  padding: 7px 0;
+  gap: 4px;
+}
+.app.in-game .hand-and-raise :is(.cards-4, .cards-5) .card.small > :is(b, span) {
+  display: grid;
+  place-items: center;
+  width: var(--card-step);
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin: 0;
+  font-size: clamp(13px, calc(var(--card-step) * .70), 23px);
+  line-height: 1;
+  height: 1.05em;
+  letter-spacing: -.04em;
+}
+.app.in-game .hand-and-raise :is(.cards-4, .cards-5) .card.small > span {
+  font-family: Arial, sans-serif;
+  font-size: clamp(17px, calc(var(--card-step) * .88), 29px);
+  letter-spacing: 0;
+}
+/* The back is a direct board card, so every responsive board rule applies.
+   The trigger overlays that slot without contributing a second set of dimensions. */
+.rabbit-hunt-card { position: relative; }
+.rabbit-hunt-card > .rabbit-hunt-trigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  border-radius: 5px;
+}
