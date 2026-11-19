@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2, Rabbit } from 'lucide-react';
 import { useAppViewport } from '../lib/client/use-app-viewport';
 import { PokerAudio } from '../lib/poker-audio';
 import { useTableEffects } from '../lib/use-table-effects';
@@ -359,6 +359,30 @@ export default function Home() {
     }
     update(view(r, token.current));
   }
+  // Practice-only shortcut: keep the local player in the hand while every
+  // simulated opponent folds, so Rabbit Hunt can be tested without waiting
+  // for unlikely bot behaviour.
+  function previewRabbitHunt() {
+    if (!showTestTools) return;
+    const r = demo.current;
+    const hero = r?.players.find((p: any) => p.id === token.current);
+    if (!r || !hero?.inHand || !['preflop', 'flop', 'turn'].includes(r.phase)) {
+      setError('Start a fresh practice hand to preview Rabbit Hunt.');
+      return;
+    }
+    let steps = 0;
+    try {
+      while (r.turn && ['preflop', 'flop', 'turn'].includes(r.phase) && steps++ < 200) {
+        const action = legal(r, r.turn);
+        if (!action) break;
+        act(r, r.turn, r.turn === token.current ? action.call ? 'call' : 'check' : 'fold');
+      }
+      setPanel('');
+      update(view(r, token.current));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
   // Block duplicate taps and wait for a fresh connection before submitting actions.
   async function send(type: string, extra: any = {}) {
     if (pending.current) return false;
@@ -604,10 +628,19 @@ export default function Home() {
   const readyPlayers = visiblePlayers.filter((p: any) => p.stack > 0 && !p.away).length;
   const turnFraction = Math.max(0, Math.min(1, (room?.deadline - clock - offset.current) / ((room?.settings.timer || 15) * 1000)));
   const nextHandFraction = Math.max(0, Math.min(1, (room?.nextDealAt - clock - offset.current) / 3000));
+  const rabbitRemaining = Math.max(0, Math.ceil(((room?.rabbitHunt?.deadline || 0) - clock - offset.current) / 1000));
+  const rabbitOpen = room?.phase === 'showdown' && room?.rabbitHunt && !room.rabbitHunt.requestedBy && !room.rabbitHunt.expiredAt && rabbitRemaining > 0;
   const waitingCall = Math.min(me?.stack || 0, Math.max(0, Math.max(0, ...(room?.players || []).filter((p: any) => p.inHand && !p.folded).map((p: any) => p.bet || 0)) - (me?.bet || 0)));
   const displayedCall = myTurn ? (l?.call || 0) : waitingCall;
   const canQueueAction = Boolean(!myTurn && me?.inHand && !me.folded && !me.away && me.stack > 0);
   const clampRaise = (v: number) => Math.min(raiseMax, Math.max(raiseMin, Math.round(v || raiseMin)));
+  const personalHand = <div className="personal-hand" aria-label="Your cards">
+    <div className={`personal-hole-cards cards-${me?.cards?.length || 0}`}>
+      {me?.inHand && me.cards?.length ? sortedHoleCards(me.cards).map((c: number, i: number) => <span className="personal-card-wrap" style={{ zIndex: i + 1 }} key={`${room.handStartedAt || 0}:${i}`}>
+        <Card value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
+      </span>) : <span className="personal-cards-placeholder">{room?.game || 'NLH'} · Your cards</span>}
+    </div>
+  </div>;
   return <div ref={appViewport} className={`app ${room ? 'in-game' : ''} ${social.open ? 'chat-active' : ''}`} onPointerDownCapture={() => audio.current?.unlock()} onKeyDownCapture={() => audio.current?.unlock()}>
 
     <header className="topbar">
@@ -698,9 +731,13 @@ export default function Home() {
                             timeline = runIndex === 1 ? effects.board2 : effects.board,
                             reveal = timeline?.events.find((event: { index: number }) => event.index === i),
                             flip = value !== undefined && reveal && effects.now < timeline.startedAt + reveal.at + 450;
-                          return <div key={`${room.handStartedAt || 0}:${runIndex}:${i}:${value ?? 'empty'}`} className={flip ? 'board-card-wrap board-dealt' : 'board-card-wrap'}>
+                          const rabbitCard = rabbitOpen && room.runCount !== 2 && i === board.length;
+                          return <div key={`${room.handStartedAt || 0}:${runIndex}:${i}:${value ?? 'empty'}`} className={`${flip ? 'board-card-wrap board-dealt' : 'board-card-wrap'} ${rabbitCard ? 'rabbit-hunt-card' : ''}`}>
                             {flip && <div className="board-flip-back" aria-hidden="true"><span>♠</span></div>}
-                            <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />
+                            {rabbitCard ? <button className="rabbit-hunt-trigger" disabled={controlsBusy} onClick={() => void send('rabbit_hunt')} aria-label={`Reveal Rabbit Hunt card, ${rabbitRemaining} seconds remaining`}>
+                              <Card back />
+                              <b><Rabbit size={13} aria-hidden="true" />{rabbitRemaining}s</b>
+                            </button> : <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
                           </div>;
                         })}
                       </div>
@@ -814,11 +851,7 @@ export default function Home() {
                 {enableReactions && <ChatButton social={social} readOnly={room.phase === 'closed'} />}
               </div>
             </div>
-            {seated && <div className="personal-hand" aria-label="Your cards">
-              <div className="personal-hole-cards" aria-label="Your cards">
-                {me?.inHand && me.cards?.length ? sortedHoleCards(me.cards).map((c: number, i: number) => <Card key={`${room.handStartedAt || 0}:${i}`} value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />) : <span className="personal-cards-placeholder">{room.game || 'NLH'} · Your cards</span>}
-              </div>
-            </div>}
+            {seated && (!live || voting) && personalHand}
             {me?.pendingSeatAction === 'leave' && <p className="game-status" role="status">Standing up after this hand and payouts. <button className="text-button" disabled={controlsBusy || room.terminationPending} onClick={() => send('cancel_stand_up')}>Cancel</button></p>}
             {room.terminationPending && <p className="game-status" role="status">Game will terminate after this hand.</p>}
             {!seated && room.phase !== 'closed' ? <>
@@ -837,22 +870,36 @@ export default function Home() {
               </div>}
               {voting ? null : live ? <>
                 <div className="betting-controls">
-                  <div className="slider-shortcuts">
-                    <div className="raise-slider-control">
-                      <input type="range" aria-label="Raise amount slider" min={0} max={1000} step={1} value={raiseMax > raiseMin ? Math.round(Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 1000) : 0} disabled={!myTurn || controlsBusy || !l?.canRaise || raiseMin === raiseMax} onChange={e => {
-                        setSelectedShortcut('');
-                        const fraction = Number(e.target.value) / 1000;
-                        const raw = raiseMin + (raiseMax - raiseMin) * fraction * fraction;
-                        const blind = Math.max(1, Number(room.settings?.bb || 50));
-                        const snapped = Math.round(raw / blind) * blind;
-                        setRaise(Number(e.target.value) === 1000 ? raiseMax : clampRaise(snapped));
-                      }} style={{ '--range-fill': `${raiseMax > raiseMin ? Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 100 : 0}%` } as React.CSSProperties} />
-                    </div>
-                    <div className="quick-bets" aria-label="Raise shortcuts">
-                      {([['½', .5], ['Pot', 1]] as const).map(([label, n]) => <button className="bet-shortcut" key={label} title={label === '½' ? 'Half pot' : 'Pot'} disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === label} onClick={() => {
-                        setSelectedShortcut(label); setRaise(shortcutRaiseTo(current.current, token.current, n));
-                      }}>{label}</button>)}
-                      <button className="bet-shortcut" title="All-in" disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === 'All'} onClick={() => { setSelectedShortcut('All'); setRaise(l.max); }}>All</button>
+                  <div className="hand-and-raise">
+                    {personalHand}
+                    <div className="slider-shortcuts">
+                      <div className="quick-bets" aria-label="Raise shortcuts">
+                        {([
+                          ['½ Pot', .5, 'pot', 'Half pot'],
+                          ['Pot', 1, 'pot', 'Pot-sized bet'],
+                          ['2×', 2, 'bet', 'Raise to twice the current bet'],
+                          ['3×', 3, 'bet', 'Raise to three times the current bet']
+                        ] as const).map(([label, multiplier, base, title]) => <button className="bet-shortcut" key={label} title={title}
+                          disabled={!myTurn || controlsBusy || !l?.canRaise || (base === 'bet' && room.currentBet <= 0)}
+                          aria-pressed={selectedShortcut === label} onClick={() => {
+                            setSelectedShortcut(label);
+                            setRaise(shortcutRaiseTo(current.current, token.current, multiplier, base));
+                          }}>{label}</button>)}
+                        <button className="bet-shortcut all-in-shortcut"
+                          title={l?.canRaise && l.max < (me?.bet || 0) + (me?.stack || 0) ? 'All-in exceeds the pot limit' : 'All-in'}
+                          disabled={!myTurn || controlsBusy || !l?.canRaise || l.max < (me?.bet || 0) + (me?.stack || 0)}
+                          aria-pressed={selectedShortcut === 'All In'} onClick={() => { setSelectedShortcut('All In'); setRaise(l.max); }}>All In</button>
+                      </div>
+                      <div className="raise-slider-control">
+                        <input type="range" aria-label="Raise amount slider" aria-valuetext={fmt(raiseValue)} min={0} max={1000} step={1} value={raiseMax > raiseMin ? Math.round(Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 1000) : 0} disabled={!myTurn || controlsBusy || !l?.canRaise || raiseMin === raiseMax} onChange={e => {
+                          setSelectedShortcut('');
+                          const fraction = Number(e.target.value) / 1000;
+                          const raw = raiseMin + (raiseMax - raiseMin) * fraction * fraction;
+                          const blind = Math.max(1, Number(room.settings?.bb || 50));
+                          const snapped = Math.round(raw / blind) * blind;
+                          setRaise(Number(e.target.value) === 1000 ? raiseMax : clampRaise(snapped));
+                        }} style={{ '--range-fill': `${raiseMax > raiseMin ? Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 100 : 0}%` } as React.CSSProperties} />
+                      </div>
                     </div>
                   </div>
                   <div className="action-buttons">
@@ -866,6 +913,7 @@ export default function Home() {
                 </div>
               </> : <div className="between-hands">
                 {room.paused && <span className="paused-state">Auto-deal paused</span>}
+                {room.phase === 'showdown' && me?.cards?.length > 0 && !room.history?.[0]?.reveals?.some((reveal: any) => reveal.name === me.name) && <button className="secondary reveal-cards" disabled={controlsBusy} onClick={() => void send('reveal_cards')}>Reveal my cards</button>}
                 {room.phase === 'closed' ? <button className="primary" onClick={() => setPanel('ledger')}>Current Game Rankings <ArrowUpRight size={16} /></button> : room.phase === 'showdown' ? <div className="auto-deal-status" role="status">
                   {room.nextDealAt && <div className="next-hand-timer" role="timer" aria-label="Next hand countdown"><i style={{transform: `scaleX(${nextHandFraction})`}} /></div>}
                   {room.host && <button className="secondary pause-deal" disabled={controlsBusy} onClick={() => send('pause')} aria-label={room.paused ? 'Resume auto-deal' : 'Pause auto-deal'}>
@@ -982,6 +1030,7 @@ export default function Home() {
           </div>}
           <div className="menu-list">
             {showTestTools && demo.current && <button onClick={previewAllIn}><Layers3 size={18} /> Preview all-in vote</button>}
+            {showTestTools && demo.current && live && <button onClick={previewRabbitHunt}>Preview Rabbit Hunt</button>}
             {seated && room.phase !== 'closed' && <>
               <button onClick={() => send('ready')} disabled={controlsBusy || me.pendingSeatAction === 'leave' || room.terminationPending}>
                 {me.pendingSeatAction === 'sit_out' ? 'Cancel Sit Out' : me.away ? 'Sit In' : 'Sit Out'}

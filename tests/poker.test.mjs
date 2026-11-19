@@ -345,7 +345,10 @@ test('automatic next deal waits for payout animation plus exactly three seconds'
   act(r, r.turn, 'fold', 0, 20000);
   assert.equal(r.nextDealAt - r.payoutFinishedAt, 3000);
   assert.equal(r.showdownAt, 20000);
-  assert.equal(tick(r, r.nextDealAt - 1), false);
+  // An uncontested preflop hand offers Rabbit Hunt first; its expiry is a
+  // persisted transition even though the next deal still waits as scheduled.
+  assert.equal(tick(r, r.nextDealAt - 1), true);
+  assert.ok(r.rabbitHunt.expiredAt);
   assert.equal(r.phase, 'showdown');
   const deadline = r.nextDealAt;
   assert.equal(tick(r, deadline), true);
