@@ -734,10 +734,9 @@ export default function Home() {
                           const rabbitCard = rabbitOpen && room.runCount !== 2 && i === board.length;
                           return <div key={`${room.handStartedAt || 0}:${runIndex}:${i}:${value ?? 'empty'}`} className={`${flip ? 'board-card-wrap board-dealt' : 'board-card-wrap'} ${rabbitCard ? 'rabbit-hunt-card' : ''}`}>
                             {flip && <div className="board-flip-back" aria-hidden="true"><span>♠</span></div>}
-                            {rabbitCard ? <button className="rabbit-hunt-trigger" disabled={controlsBusy} onClick={() => void send('rabbit_hunt')} aria-label={`Reveal Rabbit Hunt card, ${rabbitRemaining} seconds remaining`}>
-                              <Card back />
+                            {rabbitCard ? <><Card back /><button className="rabbit-hunt-trigger" disabled={controlsBusy} onClick={() => void send('rabbit_hunt')} aria-label={`Reveal Rabbit Hunt card, ${rabbitRemaining} seconds remaining`}>
                               <b><Rabbit size={13} aria-hidden="true" />{rabbitRemaining}s</b>
-                            </button> : <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
+                            </button></> : <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
                           </div>;
                         })}
                       </div>

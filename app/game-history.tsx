@@ -181,17 +181,19 @@ export function GameHistory({
 
     <div className="history-toolbar">
       <h2>Previous Games</h2>
-      <button className="primary" onClick={() => setOpen(true)}>Settle Up</button>
+      <div className="history-toolbar-actions">
+        {!demo && <button className="secondary" onClick={() => {
+          setExportError('');
+          setExportOpen(true);
+        }}>Export Data</button>}
+        <button className="secondary" onClick={() => setOpen(true)}>Settle Up</button>
+      </div>
     </div>
-    {!demo && <button className="secondary history-export-button" onClick={() => {
-      setExportError('');
-      setExportOpen(true);
-    }}>Export Hand Data</button>}
 
     {exportOpen && <div className="modal-backdrop" onClick={() => { if (!exporting) setExportOpen(false); }}>
       <section className="modal" role="dialog" aria-modal="true" aria-labelledby="export-heading" onClick={e => e.stopPropagation()}>
         <button className="modal-close icon-button" aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}>×</button>
-        <h2 id="export-heading">Export Hand Data</h2>
+        <h2 id="export-heading">Export Data</h2>
         <form onSubmit={exportHands}>
           <fieldset className="hand-export-options" disabled={exporting}>
             <legend>Choose how to select games</legend>

@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.11 — 19 November 2026
+
+- Improve hole-card proportions and rank/suit placement across NLH and Omaha, with larger NLH indices.
+- Align Rabbit Hunt backs with community cards.
+- Align equal-sized Export Data and Settle Up buttons beside Previous Games.
+
+[Release notes](docs/releases/v2.1.11.md)
+
 ## v2.1.10 — 19 November 2026
 
 - Use smaller text for Start Game options.
