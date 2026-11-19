@@ -468,3 +468,21 @@ test('empty closed games stay out of history, while a seated zero-hand game rema
   const history = await service.history();
   assert.deepEqual(history.games.map(game => game.code), [code]);
 });
+
+test('hand data selects completed games by checkbox or India date and enforces membership', async () => {
+  const storage = new MemoryStorage();
+  const service = new TableService(storage);
+  const closedAt = Date.parse('2026-11-19T18:30:00Z'); // Midnight in India on November 20.
+  await storage.put('session:ABC234', { code: 'ABC234', closedAt, completed: 129, players: [{ id: 'viewer' }] });
+  await storage.put('session:BCD234', { code: 'BCD234', closedAt, completed: 1, players: [{ id: 'other' }] });
+  for (let number = 1; number <= 129; number++) {
+    await storage.put(`hand:ABC234:${String(number).padStart(10, '0')}`, { number });
+  }
+  const selected = await service.handData({ codes: ['ABC234', 'ABC234'] }, 'viewer');
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].hands.at(-1).number, 129);
+  assert.deepEqual(await service.handData({ from: '2026-11-20', to: '2026-11-20' }, 'viewer'), selected);
+  assert.deepEqual(await service.handData({ from: '2026-11-19', to: '2026-11-19' }, 'viewer'), []);
+  await assert.rejects(service.handData({ codes: ['ABC234', 'BCD234'] }, 'viewer'), /did not play/i);
+  await assert.rejects(service.handData({ codes: ['ABC234'], from: '2026-11-20' }, 'viewer'), /valid games/i);
+});

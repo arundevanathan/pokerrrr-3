@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2, Rabbit } from 'lucide-react';
 import { useAppViewport } from '../lib/client/use-app-viewport';
 import { PokerAudio } from '../lib/poker-audio';
 import { useTableEffects } from '../lib/use-table-effects';
@@ -736,7 +736,7 @@ export default function Home() {
                             {flip && <div className="board-flip-back" aria-hidden="true"><span>♠</span></div>}
                             {rabbitCard ? <button className="rabbit-hunt-trigger" disabled={controlsBusy} onClick={() => void send('rabbit_hunt')} aria-label={`Reveal Rabbit Hunt card, ${rabbitRemaining} seconds remaining`}>
                               <Card back />
-                              <b>{rabbitRemaining}s</b>
+                              <b><Rabbit size={13} aria-hidden="true" />{rabbitRemaining}s</b>
                             </button> : <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
                           </div>;
                         })}

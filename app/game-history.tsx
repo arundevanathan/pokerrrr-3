@@ -38,7 +38,12 @@ export function GameHistory({
     [open, setOpen] = useState(false);
   const [viewerKey, setViewerKey] = useState<string | null>(null),
     [selected, setSelected] = useState<any>(null),
-    [exportingCode, setExportingCode] = useState(''),
+    [exportOpen, setExportOpen] = useState(false),
+    [exportMode, setExportMode] = useState<'games' | 'dates'>('games'),
+    [exportGames, setExportGames] = useState<string[]>([]),
+    [exportFrom, setExportFrom] = useState(() => currentSettlementWeek().from),
+    [exportTo, setExportTo] = useState(() => currentSettlementWeek().to),
+    [exporting, setExporting] = useState(false),
     [exportError, setExportError] = useState(''),
     [shareStatus, setShareStatus] = useState(''),
     [sharing, setSharing] = useState(false),
@@ -86,6 +91,8 @@ export function GameHistory({
     setCalculating(false);
   }
   useEffect(() => {
+    setExportOpen(false);
+    setExportGames([]);
     setGames([]);
     setSelected(null);
     setCursor(null);
@@ -146,35 +153,81 @@ export function GameHistory({
       setSharing(false);
     }
   }
-  async function downloadActionLog(game: any) {
+  async function exportHands(event: React.FormEvent) {
+    event.preventDefault();
     setExportError('');
-    setExportingCode(game.code);
+    setExporting(true);
     try {
-      const response = await fetch(`/api/hand-history?${new URLSearchParams({ code: game.code })}`, { cache: 'no-store' });
+      const selection = exportMode === 'games' ? { codes: exportGames } : { from: exportFrom, to: exportTo };
+      const response = await fetch('/api/hand-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selection),
+        cache: 'no-store'
+      });
       if (!response.ok) {
         const body = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error || 'Could not download the action log');
+        throw new Error(body.error || 'Could not export hand data');
       }
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `dunzo-club-${game.code}-action-log.csv`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      download(new File([await response.blob()], 'dunzo-club-hand-data.csv', { type: 'text/csv' }));
     } catch (error: any) {
-      setExportError(error.message || 'Could not download the action log');
+      setExportError(error.message || 'Could not export hand data');
     } finally {
-      setExportingCode('');
+      setExporting(false);
     }
   }
+  const eligibleGames = games.filter(game => game.completed !== 0 && game.players.some((player: any) => player.key === viewerKey));
   return <section className="game-history" aria-label="Previous games">
 
     <div className="history-toolbar">
       <h2>Previous Games</h2>
       <button className="primary" onClick={() => setOpen(true)}>Settle Up</button>
     </div>
+    {!demo && <button className="secondary history-export-button" onClick={() => {
+      setExportError('');
+      setExportOpen(true);
+    }}>Export Hand Data</button>}
+
+    {exportOpen && <div className="modal-backdrop" onClick={() => { if (!exporting) setExportOpen(false); }}>
+      <section className="modal" role="dialog" aria-modal="true" aria-labelledby="export-heading" onClick={e => e.stopPropagation()}>
+        <button className="modal-close icon-button" aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}>×</button>
+        <h2 id="export-heading">Export Hand Data</h2>
+        <form onSubmit={exportHands}>
+          <fieldset className="hand-export-options" disabled={exporting}>
+            <legend>Choose how to select games</legend>
+            <label><input type="radio" name="export-mode" checked={exportMode === 'games'} onChange={() => setExportMode('games')} /> Select games</label>
+            <label><input type="radio" name="export-mode" checked={exportMode === 'dates'} onChange={() => setExportMode('dates')} /> Date range</label>
+          </fieldset>
+
+          {exportMode === 'games' ? <>
+            <fieldset className="hand-export-games" disabled={exporting}>
+              <legend>Completed games you played</legend>
+              {eligibleGames.map(game => <label key={game.code}>
+                <input type="checkbox" checked={exportGames.includes(game.code)} onChange={e => {
+                  const checked = e.target.checked;
+                  setExportGames(old => checked ? [...old, game.code] : old.filter(code => code !== game.code));
+                }} /> {date(game.closedAt)} · {game.completed} {game.completed === 1 ? 'hand' : 'hands'}
+              </label>)}
+              {!eligibleGames.length && <p>{loading ? 'Loading games…' : 'No eligible games in this list.'}</p>}
+            </fieldset>
+            {cursor && <button type="button" className="secondary" disabled={loading || exporting} onClick={() => void load(cursor)}>{loading ? 'Loading…' : 'Load More Games'}</button>}
+            {error && <p className="error" role="alert">{error}</p>}
+          </> : <>
+            <div className="field-row">
+              <label>From<input type="date" required value={exportFrom} max={exportTo} disabled={exporting} onChange={e => setExportFrom(e.target.value)} /></label>
+              <label>To<input type="date" required value={exportTo} min={exportFrom} disabled={exporting} onChange={e => setExportTo(e.target.value)} /></label>
+            </div>
+            <p className="settlement-note">Includes games completed on these dates in India time.</p>
+          </>}
+          <p className="settlement-note">Includes your hole cards, public boards and payouts, and cards publicly shown at showdown or voluntarily revealed.</p>
+          {exportError && <p className="error" role="alert">{exportError}</p>}
+          <button className="primary full" disabled={exporting || (exportMode === 'games' ? !exportGames.length : !exportFrom || !exportTo)}>
+            {exporting ? 'Preparing export…' : 'Download CSV'}
+          </button>
+        </form>
+      </section>
+    </div>}
+
 
     {showTestTools && demoAvailable && <label className="demo-history-toggle"><input type="checkbox" checked={demo} onChange={e => setDemo(e.target.checked)} />Show Simulated History</label>}
 
@@ -225,11 +278,6 @@ export function GameHistory({
         <p>
           {date(selected.closedAt)}
         </p>
-        <button className="secondary" disabled={exportingCode === selected.code} onClick={() => void downloadActionLog(selected)}>
-          {exportingCode === selected.code ? 'Preparing Action Log…' : 'Download Action Log CSV'}
-        </button>
-        <p className="settlement-note">One row per action. Your own hole cards and only publicly revealed opponents’ cards are included.</p>
-        {exportError && <p className="error" role="alert">{exportError}</p>}
         <table>
           <thead>
             <tr>

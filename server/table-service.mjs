@@ -173,11 +173,31 @@ export class TableService {
     const session = await this.storage.get(`session:${code}`);
     requireState(session, 'Game history is unavailable', 404);
     requireState(session.players?.some(player => player.id === viewerId), 'You did not play in this game', 403);
-    const records = await this.storage.list({ prefix: `hand:${code}:`, limit: 1000 });
-    return {
-      session,
-      hands: [...records.values()].sort((a, b) => a.number - b.number)
-    };
+    const hands = [];
+    let startAfter;
+    for (;;) {
+      const records = await this.storage.list({ prefix: `hand:${code}:`, limit: 128, ...(startAfter && { startAfter }) });
+      hands.push(...records.values());
+      if (records.size < 128) break;
+      startAfter = [...records.keys()].at(-1);
+    }
+    return { code, session, hands };
+  }
+  async handData({ codes, from, to } = {}, viewerId) {
+    if (codes !== undefined) {
+      requireState(!from && !to && Array.isArray(codes) && codes.length > 0 &&
+        codes.every(code => typeof code === 'string' && /^[A-Z2-9]{6}$/.test(code)), 'Choose valid games', 400);
+      return Promise.all([...new Set(codes)].map(code => this.handHistory(code, viewerId)));
+    }
+    historyRange(from, to, true);
+    const sessions = await this.completedGames({ from, to });
+    const archives = [];
+    for (const session of sessions) {
+      if (session.players?.some(player => player.id === viewerId)) {
+        archives.push(await this.handHistory(session.code, viewerId));
+      }
+    }
+    return archives;
   }
   async settlement({
     from,

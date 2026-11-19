@@ -5028,7 +5028,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
   gap:clamp(3px,1.1vw,7px); min-width:0; width:100%;
 }
 .in-game .personal-hole-cards .card.small {
-  flex:0 1 auto; width:clamp(52px,15vw,76px); height:96px;
+  flex:0 1 auto; width:min(15vw, 70px); height:auto; aspect-ratio: 5 / 7;
   min-width:0; padding:4px; transform:none; margin:0;
 }
 .in-game .personal-hole-cards .personal-card-wrap {
@@ -5126,44 +5126,44 @@ html:has(.app.in-game),body:has(.app.in-game) {
   padding: 1px 0;
 }
 .in-game .hand-and-raise .personal-hole-cards {
+  --card-width: min(calc((100cqw - 5px) / 2), calc((var(--bet-sizing-height) - 2px) * 5 / 7));
   height: 100%;
-  justify-content: flex-start;
-  gap: 4px;
+  gap: 5px;
 }
 .in-game .hand-and-raise .personal-card-wrap {
-  flex: 0 1 108px;
-  height: 100%;
+  flex: 0 0 var(--card-width);
   min-width: 0;
+  position: relative;
 }
 .in-game .hand-and-raise .personal-hole-cards .card.small {
   width: 100%;
-  height: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
   padding: 6px;
   border-radius: 9px;
 }
 .in-game .hand-and-raise :is(.cards-4, .cards-5) {
-  --card-width: 40%;
-  --overlap: 20%;
+  --card-width: min(44cqw, calc((var(--bet-sizing-height) - 2px) * 5 / 7));
+  --card-step: min(36px, calc((100cqw - var(--card-width)) / 3));
   gap: 0;
 }
-.in-game .hand-and-raise .cards-5 { --overlap: 25%; }
-.in-game .hand-and-raise :is(.cards-4, .cards-5) .personal-card-wrap {
-  flex: 0 0 var(--card-width);
-  position: relative;
+.in-game .hand-and-raise .cards-5 {
+  --card-width: min(39cqw, calc((var(--bet-sizing-height) - 2px) * 5 / 7));
+  --card-step: min(36px, calc((100cqw - var(--card-width)) / 4));
 }
-.in-game .hand-and-raise :is(.cards-4, .cards-5) .personal-card-wrap + .personal-card-wrap {
-  margin-inline-start: calc(-1 * var(--overlap));
+.in-game .hand-and-raise :is(.cards-4, .cards-5) .personal-card-wrap:not(:first-child) {
+  margin-inline-start: min(0px, calc(var(--card-step) - var(--card-width)));
 }
 .app.in-game .hand-and-raise :is(.cards-4, .cards-5) .card.small {
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 7px 3px;
+  padding: 6px 3px;
   gap: 3px;
 }
 .app.in-game .hand-and-raise :is(.cards-4, .cards-5) .card.small > :is(b, span) {
   align-self: flex-start;
   margin: 0;
-  font-size: clamp(14px, 10cqw, 25px);
+  font-size: clamp(12px, calc((var(--card-step) - 4px) * .74), 23px);
   line-height: 1;
 }
 .in-game .hand-and-raise .slider-shortcuts {
@@ -5175,6 +5175,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
   min-height: 0;
 }
 .in-game .hand-and-raise .quick-bets {
+  grid-area: 1 / 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(3, minmax(0, 1fr));
@@ -5199,6 +5200,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
   background: #3c5336;
 }
 .in-game .hand-and-raise .raise-slider-control {
+  grid-area: 1 / 2;
   position: relative;
   width: 100%;
   height: 100%;
@@ -5474,6 +5476,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .rabbit-hunt-trigger .card { pointer-events: none; }
 .rabbit-hunt-trigger>b {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   right: -8px;
   top: -9px;
   min-width: 25px;
@@ -5493,3 +5498,31 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .in-game .table-stage.two-runouts .board-cards .card b { font-size: 11px; }
   .in-game .table-stage.two-runouts .board-cards .card>span { font-size: 14px; }
 }
+
+
+.history-export-button { margin-block: 4px 12px; }
+.hand-export-options, .hand-export-games {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  border: 0;
+}
+.hand-export-options legend, .hand-export-games legend {
+  color: var(--muted);
+  font-size: 13px;
+}
+.hand-export-options > label, .hand-export-games > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: 0;
+}
+.hand-export-options input, .hand-export-games input {
+  appearance: auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--gold);
+}
+.hand-export-games { max-height: 36dvh; overflow-y: auto; }

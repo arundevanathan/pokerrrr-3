@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newRoom, command, finish, startHand, view } from '../lib/poker.mjs';
-import { actionLogCsv } from '../lib/hand-history-export.mjs';
+import { actionLogCsv, handDataCsv } from '../lib/hand-history-export.mjs';
 
 const host = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const card = text => 'cdhs'.indexOf(text[1]) * 13 + '23456789TJQKA'.indexOf(text[0]);
@@ -81,4 +81,24 @@ test('action-log CSV keeps Action Log columns and never emits an unrevealed fold
   assert.match(csv, /Ac Kd/);
   assert.ok(!csv.includes('Qs Jh'));
   assert.match(csv, /"post SB"/);
+});
+
+test('multi-game CSV preserves per-hand visibility and emits a single header', () => {
+  const makeHand = (playerId, holeCards, shown) => ({
+    number: 1,
+    game: 'NLH',
+    completedAt: Date.UTC(2026, 10, 19),
+    board: [card('2c'), card('3d'), card('4h')],
+    showdown: shown ? [{ name: 'Showdown player', cards: [card('5s'), card('6s')] }] : [],
+    reveals: shown ? [{ name: 'Voluntary reveal', cards: [card('7s'), card('8s')] }] : [],
+    audit: { dealerSeat: 0, players: [{ playerId, name: 'Player', seat: 0, holeCards }] }
+  });
+  const csv = handDataCsv([
+    { code: 'ABC234', hands: [makeHand(host, [card('Ac'), card('Kd')], true)] },
+    { code: 'BCD234', hands: [makeHand(host, [card('9h'), card('Th')], false)] },
+    { code: 'CDE234', hands: [makeHand('other', [card('Qs'), card('Jh')], false)] }
+  ], host);
+  assert.equal(csv.match(/"Hand ID"/g).length, 1);
+  assert.match(csv, /ABC234[\s\S]*5s 6s[\s\S]*7s 8s[\s\S]*BCD234[\s\S]*9h Th/);
+  assert.doesNotMatch(csv, /CDE234|Qs Jh/);
 });
