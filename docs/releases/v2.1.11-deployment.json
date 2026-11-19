@@ -1,0 +1,11 @@
+{
+  "tag": "v2.1.11",
+  "commit": "42914db162f7a0bc2410fef2abd8cfaf728fda51",
+  "workerVersion": "6d455fc3-8dc5-45ba-b1db-568089a72367",
+  "deploymentId": "4dd276c2-c7e7-4788-9fcd-8745fca825af",
+  "rollbackVersion": "25839674-e8ee-4c8b-8b54-abe1fedb6664",
+  "verifiedAt": "2026-11-19T17:40:11.910Z",
+  "productionUrl": "https://dunzo-club.arun-devanathan.workers.dev/",
+  "trafficPercent": 100,
+  "validation": "Owner approved staging after testing. TypeScript, production artifact guard, production build, presentation and history/export checks passed. Production health verified expected release and multiplayer readiness. Existing rabbit-hunt end-of-session timing assertion persists in local smoke checks."
+}
