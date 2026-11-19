@@ -5533,10 +5533,11 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .app.in-game .hand-and-raise .personal-hole-cards .card.small {
   position: relative;
 }
-/* Use the Omaha card and index dimensions for NLH too; only overlap differs. */
+/* NLH retains its separate card dimensions and uses a larger, unclipped index. */
 .app.in-game .hand-and-raise .cards-2 {
   --card-width: min(39cqw, calc((var(--bet-sizing-height) - 2px) * 5 / 7));
-  --card-step: min(36px, calc((100cqw - var(--card-width)) / 4));
+  --nlh-index-reference: min(36px, calc((100cqw - min(44cqw, calc((var(--bet-sizing-height) - 2px) * 5 / 7))) / 3));
+  --card-step: calc(var(--nlh-index-reference) * 1.18);
 }
 .app.in-game .hand-and-raise :is(.cards-2, .cards-4, .cards-5) .card.small {
   padding: 7px 0;
@@ -5558,6 +5559,14 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   font-family: Arial, sans-serif;
   font-size: clamp(17px, calc(var(--card-step) * .88), 29px);
   letter-spacing: 0;
+}
+/* 18% larger than the PLO4 index at the same viewport; Omaha stays unchanged. */
+.app.in-game .hand-and-raise .cards-2 .card.small { gap: 5px; }
+.app.in-game .hand-and-raise .cards-2 .card.small > b {
+  font-size: calc(clamp(13px, calc(var(--nlh-index-reference) * .70), 23px) * 1.18);
+}
+.app.in-game .hand-and-raise .cards-2 .card.small > span {
+  font-size: calc(clamp(17px, calc(var(--nlh-index-reference) * .88), 29px) * 1.18);
 }
 /* The back is a direct board card, so every responsive board rule applies.
    The trigger overlays that slot without contributing a second set of dimensions. */
