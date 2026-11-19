@@ -38,6 +38,8 @@ export function GameHistory({
     [open, setOpen] = useState(false);
   const [viewerKey, setViewerKey] = useState<string | null>(null),
     [selected, setSelected] = useState<any>(null),
+    [exportingCode, setExportingCode] = useState(''),
+    [exportError, setExportError] = useState(''),
     [shareStatus, setShareStatus] = useState(''),
     [sharing, setSharing] = useState(false),
     [shareFile, setShareFile] = useState<File | null>(null);
@@ -144,6 +146,29 @@ export function GameHistory({
       setSharing(false);
     }
   }
+  async function downloadActionLog(game: any) {
+    setExportError('');
+    setExportingCode(game.code);
+    try {
+      const response = await fetch(`/api/hand-history?${new URLSearchParams({ code: game.code })}`, { cache: 'no-store' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error || 'Could not download the action log');
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `dunzo-club-${game.code}-action-log.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error: any) {
+      setExportError(error.message || 'Could not download the action log');
+    } finally {
+      setExportingCode('');
+    }
+  }
   return <section className="game-history" aria-label="Previous games">
 
     <div className="history-toolbar">
@@ -200,6 +225,11 @@ export function GameHistory({
         <p>
           {date(selected.closedAt)}
         </p>
+        <button className="secondary" disabled={exportingCode === selected.code} onClick={() => void downloadActionLog(selected)}>
+          {exportingCode === selected.code ? 'Preparing Action Log…' : 'Download Action Log CSV'}
+        </button>
+        <p className="settlement-note">One row per action. Your own hole cards and only publicly revealed opponents’ cards are included.</p>
+        {exportError && <p className="error" role="alert">{exportError}</p>}
         <table>
           <thead>
             <tr>

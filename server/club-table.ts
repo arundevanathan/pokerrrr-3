@@ -7,6 +7,7 @@ import { PROTOCOL_VERSION } from '../lib/protocol/poker.mjs';
 import { SocialService } from './social-service.mjs';
 import { presenceView } from '../lib/presence.mjs';
 import { reactionsEnabled } from '../lib/reactions.mjs';
+import { actionLogCsv } from '../lib/hand-history-export.mjs';
 type Peer = {
   playerId: string;
   cookie: string;
@@ -118,6 +119,21 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
           code: 'LOGIN_REQUIRED'
         }, 401);
         const token = player.id;
+        if (url.pathname === '/api/hand-history' && request.method === 'GET') {
+          this.limit(`hand-history:${token}`, 20);
+          const code = url.searchParams.get('code') || '';
+          if (!/^[A-Z2-9]{6}$/.test(code)) throw new TableError('Choose a valid game', 400);
+          const archive = await this.service.handHistory(code, token);
+          const body = actionLogCsv({ code, ...archive, viewerId: token });
+          return new Response(body, {
+            headers: {
+              'Content-Type': 'text/csv; charset=utf-8',
+              'Content-Disposition': `attachment; filename="dunzo-club-${code}-action-log.csv"`,
+              'Cache-Control': 'no-store, private',
+              Vary: 'Cookie, Authorization'
+            }
+          });
+        }
         if (request.headers.get('X-Poker-Presence') === 'poll') {
           const leases = await this.ctx.storage.get<Record<string, number>>('presence:http') || {};
           leases[token] = Date.now();

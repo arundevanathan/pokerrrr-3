@@ -17,7 +17,7 @@ export function nextDeadline(room, checkBustedSeats = true) {
   const departure = room.phase === 'showdown' && room.players.some(p => p.pendingSeatAction === 'leave') ? room.payoutFinishedAt : null;
   const bustedSeatCheck = checkBustedSeats && room.phase === 'showdown' && !room.terminationPending &&
     room.bustedSeatsCheckedHand !== room.completed && room.players.some(isBustedSeat) ? room.payoutFinishedAt : null;
-  const deadlines = [departure, bustedSeatCheck, room.sessionEndsAt, room.deadline, room.phase === 'runout_vote' ? room.runVote?.deadline : null, room.phase === 'showdown' ? room.terminationPending ? room.payoutFinishedAt : !room.paused ? room.nextDealAt : null : null].filter(Number.isFinite);
+  const deadlines = [departure, bustedSeatCheck, room.sessionEndsAt, room.deadline, room.phase === 'runout_vote' ? room.runVote?.deadline : null, room.phase === 'showdown' ? room.rabbitHunt?.requestedBy || room.rabbitHunt?.expiredAt ? null : room.rabbitHunt?.deadline : null, room.phase === 'showdown' ? room.terminationPending ? room.payoutFinishedAt : !room.paused ? room.nextDealAt : null : null].filter(Number.isFinite);
   return deadlines.length ? Math.min(...deadlines) : null;
 }
 async function digest(value) {
@@ -73,14 +73,19 @@ export class TableService {
       });
     }
     await tx.put(`room:${room.code}`, room);
-    if (!previous || previous.phase !== room.phase || previous.completed !== room.completed) {
-      for (const hand of room.history.filter(h => h.number > (previous?.completed || 0))) {
-        await tx.put(`hand:${room.code}:${String(hand.number).padStart(10, '0')}`, {
-          ...hand,
-          completedAt: room.showdownAt,
-          ...(room.handAudit?.number === hand.number && { audit: room.handAudit })
-        });
-      }
+    // A completed hand is immutable apart from voluntary reveals and Rabbit Hunt.
+    // Persist those post-hand public events too, while preserving the original
+    // server-only audit after the next hand begins.
+    const previousHands = new Map((previous?.history || []).map(hand => [hand.number, hand]));
+    for (const hand of room.history) {
+      if (JSON.stringify(previousHands.get(hand.number)) === JSON.stringify(hand)) continue;
+      const key = `hand:${room.code}:${String(hand.number).padStart(10, '0')}`;
+      const existing = await tx.get(key);
+      await tx.put(key, {
+        ...hand,
+        completedAt: existing?.completedAt || room.showdownAt,
+        ...(room.handAudit?.number === hand.number ? { audit: room.handAudit } : existing?.audit ? { audit: existing.audit } : {})
+      });
     }
     const active = await tx.get('active');
     if (room.phase === 'closed') {
@@ -162,6 +167,16 @@ export class TableService {
     return {
       games: await publicHistory(page),
       nextCursor: records.length > 20 ? `${last.closedAt}:${last.code}` : null
+    };
+  }
+  async handHistory(code, viewerId) {
+    const session = await this.storage.get(`session:${code}`);
+    requireState(session, 'Game history is unavailable', 404);
+    requireState(session.players?.some(player => player.id === viewerId), 'You did not play in this game', 403);
+    const records = await this.storage.list({ prefix: `hand:${code}:`, limit: 1000 });
+    return {
+      session,
+      hands: [...records.values()].sort((a, b) => a.number - b.number)
     };
   }
   async settlement({

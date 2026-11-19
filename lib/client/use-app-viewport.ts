@@ -35,10 +35,20 @@ export function useAppViewport(inGame: boolean) {
       if (height > 0) element.style.setProperty('--app-viewport-height', `${Math.floor(height)}px`);
     };
     const resize = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
+    const reorient = () => {
+      // iOS often reports the old visual viewport once immediately after rotating.
+      resize();
+      window.setTimeout(resize, 80);
+      window.setTimeout(() => {
+        window.scrollTo(0, 0);
+        resize();
+      }, 260);
+    };
     const observer = new MutationObserver(resize);
     observer.observe(element, { attributes: true, attributeFilter: ['class'] });
     measure();
     window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', reorient);
     window.addEventListener('pageshow', resize);
     window.visualViewport?.addEventListener('resize', resize);
     window.visualViewport?.addEventListener('scroll', resize);
@@ -47,6 +57,7 @@ export function useAppViewport(inGame: boolean) {
       cancelAnimationFrame(frame);
       window.clearTimeout(keyboardSettled);
       window.removeEventListener('resize', resize);
+      window.removeEventListener('orientationchange', reorient);
       window.removeEventListener('pageshow', resize);
       window.visualViewport?.removeEventListener('resize', resize);
       window.visualViewport?.removeEventListener('scroll', resize);
