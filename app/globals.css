@@ -5593,6 +5593,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 }
 .app.in-game .hand-and-raise .cards-2 .card.small > span {
   font-size: calc(clamp(17px, calc(var(--nlh-index-reference) * .88), 29px) * 1.18);
+  transform: translateX(3px);
 }
 /* The back is a direct board card, so every responsive board rule applies.
    The trigger overlays that slot without contributing a second set of dimensions. */
