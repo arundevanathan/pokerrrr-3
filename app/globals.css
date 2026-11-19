@@ -5195,6 +5195,7 @@ html:has(.app.in-game),body:has(.app.in-game) {
   background: #20362a;
   font-size: clamp(11px, 3.4vw, 15px);
 }
+.in-game .hand-and-raise .quick-bets > .all-in-shortcut { grid-column: 1 / -1; }
 .in-game .hand-and-raise .quick-bets > button[aria-pressed="true"] {
   border-color: var(--gold);
   background: #3c5336;

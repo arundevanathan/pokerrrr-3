@@ -874,10 +874,21 @@ export default function Home() {
                     {personalHand}
                     <div className="slider-shortcuts">
                       <div className="quick-bets" aria-label="Raise shortcuts">
-                        {([['½', .5], ['Pot', 1], ['2×', 2], ['3×', 3], ['5×', 5]] as const).map(([label, n]) => <button className="bet-shortcut" key={label} title={label === '½' ? 'Half pot' : label === 'Pot' ? 'Pot-sized bet' : `${label} pot`} disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === label} onClick={() => {
-                          setSelectedShortcut(label); setRaise(shortcutRaiseTo(current.current, token.current, n));
-                        }}>{label}</button>)}
-                        <button className="bet-shortcut" title="All-in" disabled={!myTurn || controlsBusy || !l?.canRaise} aria-pressed={selectedShortcut === 'All'} onClick={() => { setSelectedShortcut('All'); setRaise(l.max); }}>All</button>
+                        {([
+                          ['½ Pot', .5, 'pot', 'Half pot'],
+                          ['Pot', 1, 'pot', 'Pot-sized bet'],
+                          ['2×', 2, 'bet', 'Raise to twice the current bet'],
+                          ['3×', 3, 'bet', 'Raise to three times the current bet']
+                        ] as const).map(([label, multiplier, base, title]) => <button className="bet-shortcut" key={label} title={title}
+                          disabled={!myTurn || controlsBusy || !l?.canRaise || (base === 'bet' && room.currentBet <= 0)}
+                          aria-pressed={selectedShortcut === label} onClick={() => {
+                            setSelectedShortcut(label);
+                            setRaise(shortcutRaiseTo(current.current, token.current, multiplier, base));
+                          }}>{label}</button>)}
+                        <button className="bet-shortcut all-in-shortcut"
+                          title={l?.canRaise && l.max < (me?.bet || 0) + (me?.stack || 0) ? 'All-in exceeds the pot limit' : 'All-in'}
+                          disabled={!myTurn || controlsBusy || !l?.canRaise || l.max < (me?.bet || 0) + (me?.stack || 0)}
+                          aria-pressed={selectedShortcut === 'All In'} onClick={() => { setSelectedShortcut('All In'); setRaise(l.max); }}>All In</button>
                       </div>
                       <div className="raise-slider-control">
                         <input type="range" aria-label="Raise amount slider" aria-valuetext={fmt(raiseValue)} min={0} max={1000} step={1} value={raiseMax > raiseMin ? Math.round(Math.sqrt((raiseValue - raiseMin) / (raiseMax - raiseMin)) * 1000) : 0} disabled={!myTurn || controlsBusy || !l?.canRaise || raiseMin === raiseMax} onChange={e => {
