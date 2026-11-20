@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.13 — 20 November 2026
+
+- Recover stale game snapshots independently of heartbeat traffic.
+- Confirm folding when checking is free, scoped to the current betting decision.
+- Reduce idle reaction writes, redundant alarm/pointer writes and repeated broadcast reads.
+
+[Release notes](docs/releases/v2.1.13.md)
+
 ## v2.1.12 — 20 November 2026
 
 - Let signed-in club players export all completed games by selection or date range, including games they did not play.
