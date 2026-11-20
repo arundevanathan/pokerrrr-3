@@ -5,7 +5,8 @@ import { reactionsEnabled } from '../lib/reactions.mjs';
 import { useSocial } from '../lib/client/use-social';
 import { ChatDrawer } from './table-chat';
 import { showTestTools } from '../lib/client/environment';
-import { currentSettlementWeek, settlementDate, settlementText } from '../lib/game-history.mjs';
+import { settlementImage } from '../lib/client/settlement-image';
+import { currentSettlementWeek, settlementDate } from '../lib/game-history.mjs';
 const fmt = (n: number) => new Intl.NumberFormat('en-IN', {
   signDisplay: 'exceptZero'
 }).format(n);
@@ -128,7 +129,7 @@ export function GameHistory({
   useEffect(() => {
     let active = true;
     setShareFile(null);
-    if (result) void settlementImage(settlementText(result)).then(file => {
+    if (result) void settlementImage(result).then(file => {
       if (active) setShareFile(file);
     }).catch(() => { });
     return () => {
@@ -140,7 +141,7 @@ export function GameHistory({
     setSharing(true);
     setShareStatus('');
     try {
-      const file = shareFile || await settlementImage(settlementText(result));
+      const file = shareFile || await settlementImage(result);
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file] });
       } else {
@@ -390,37 +391,6 @@ export function GameHistory({
     </div>}
 
   </section>;
-}
-async function settlementImage(text: string) {
-  const lines = text.split('\n'),
-    canvas = document.createElement('canvas');
-  canvas.width = 1200;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Image unavailable');
-  ctx.font = '28px sans-serif';
-  const wrapped: string[] = [];
-  for (const line of lines) {
-    let row = '';
-    for (const word of line.split(' ')) {
-      if (ctx.measureText(`${row} ${word}`).width > 1080 && row) {
-        wrapped.push(row);
-        row = word;
-      } else row = row ? `${row} ${word}` : word;
-    }
-    wrapped.push(row);
-  }
-  canvas.height = 100 + wrapped.length * 46;
-  ctx.fillStyle = '#192622';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.font = '28px sans-serif';
-  wrapped.forEach((line, i) => {
-    ctx.fillStyle = i === 0 ? '#d9bb82' : '#eeeae1';
-    ctx.fillText(line, 60, 65 + i * 46);
-  });
-  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Image unavailable')), 'image/png'));
-  return new File([blob], 'dunzo-club-settlement.png', {
-    type: 'image/png'
-  });
 }
 function download(file: File) {
   const url = URL.createObjectURL(file),
