@@ -1,0 +1,11 @@
+{
+  "tag": "v2.1.12",
+  "commit": "caaf560c2ad7a236f8b8310409c10478b489866f",
+  "workerVersion": "1e26de32-5f53-441b-9514-2ea17d8d4280",
+  "deploymentId": "b88fb770-a26f-4202-bffa-3e444b306d93",
+  "rollbackVersion": "6d455fc3-8dc5-45ba-b1db-568089a72367",
+  "verifiedAt": "2026-11-20T12:40:31.229Z",
+  "productionUrl": "https://dunzo-club.arun-devanathan.workers.dev/",
+  "trafficPercent": 100,
+  "validation": "146 tests, TypeScript, production build and artifact guard, and full local production multiplayer smoke passed, including unauthenticated export rejection, signed-in observer exports by game and date, and blank private hero-card fields. Production health verified deployed source and multiplayer readiness."
+}
