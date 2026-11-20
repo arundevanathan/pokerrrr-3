@@ -29,6 +29,27 @@ the existing automatic check/fold rule when time expires.
 - The same Durable Object alarm schedules game deadlines and presence expiry.
   Connection metadata survives socket hibernation; no namespace migration is used.
 
+## Staging: state freshness and free-check protection
+
+Full game-state freshness is independent of heartbeat/chat traffic. During an
+active hand, runout vote or showdown, the client polls the authoritative table
+when no accepted full snapshot has arrived for six seconds. It also performs an
+HTTP snapshot audit at least every twelve seconds even if socket snapshots are
+arriving. Both checks run on the existing three-second heartbeat, subject to
+network response times. A known table is fetched before the lobby, so a slow
+lobby cannot block same-hand recovery. Older snapshots cannot roll state back.
+Recovery reads snapshots only; it never creates a new betting command.
+
+Directly tapping Fold when Check is free opens a confirmation with a prominent
+Check button and a secondary Fold Anyway button. The server turn clock keeps
+running. Confirmation is scoped to the exact table, player, hand, street and
+betting decision; it closes if that decision changes. Existing queued Check/Fold
+behaviour remains unchanged and does not prompt.
+
+These changes harden recovery against stale views. They do not establish the
+cause of the reported 20 November client freeze; the hand CSV has no action
+clock or timeout columns, and client receipt/render diagnostics were unavailable.
+
 ## Automated checks
 
 `pnpm test` includes `tests/recovery.test.mjs`: lost accepted replies, HTTP-only

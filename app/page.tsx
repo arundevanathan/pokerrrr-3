@@ -22,6 +22,7 @@ import { GameHistory } from './game-history';
 import { PlayerLobby, PinSettings } from './player-lobby';
 import { showTestTools } from '../lib/client/environment';
 import { nextRaise } from '../lib/client/raise-selection.mjs';
+import { freeCheckDecision, foldConfirmationValid } from '../lib/client/free-check-fold.mjs';
 import { preactionValid, resolvePreaction } from '../lib/client/preaction.mjs';
 type Room = any;
 // Temporary identities for local practice; multiplayer identity comes from the server.
@@ -93,7 +94,8 @@ export default function Home() {
     [selectedWinner, setSelectedWinner] = useState(''),
     [selectedShortcut, setSelectedShortcut] = useState(''),
     [selectedRun, setSelectedRun] = useState(0),
-    [selectedSeat, setSelectedSeat] = useState<number | null>(null);
+    [selectedSeat, setSelectedSeat] = useState<number | null>(null),
+    [foldDecision, setFoldDecision] = useState<string | null>(null);
   const appViewport = useAppViewport(Boolean(room));
   const finalRankings = panel === 'ledger' && room?.phase === 'closed';
   useEffect(() => {
@@ -555,6 +557,29 @@ export default function Home() {
     myTurn = room?.turn === room?.me,
     l = room?.legal,
     seconds = room?.deadline ? Math.max(0, Math.ceil((room.deadline - clock - offset.current) / 1000)) : 0;
+  useEffect(() => {
+    if (foldDecision && (panel !== 'fold-confirm' || !foldConfirmationValid(foldDecision, room))) {
+      setFoldDecision(null);
+      setPanel(open => open === 'fold-confirm' ? '' : open);
+    }
+  }, [room, panel, foldDecision]);
+  function requestFold() {
+    const decision = freeCheckDecision(room);
+    if (decision) {
+      setFoldDecision(decision);
+      setPanel('fold-confirm');
+    } else void send('fold');
+  }
+  async function confirmFreeAction(type: 'check' | 'fold') {
+    if (!foldConfirmationValid(foldDecision, current.current)) {
+      setFoldDecision(null);
+      setPanel('');
+      return;
+    }
+    setFoldDecision(null);
+    setPanel('');
+    await send(type);
+  }
   function selectPreaction(choice: 'fold' | 'check-fold' | 'check') {
     const next = preaction === choice ? null : choice;
     queuedAction.current = next ? { choice: next, player: room.me, code: room.code, hand: room.handStartedAt, phase: room.phase } : null;
@@ -902,7 +927,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="action-buttons">
-                    <button className="fold" disabled={controlsBusy || (myTurn && !l) || (!myTurn && !canQueueAction)} aria-pressed={!myTurn && preaction === (displayedCall ? 'fold' : 'check-fold')} onClick={() => myTurn ? send('fold') : selectPreaction(displayedCall ? 'fold' : 'check-fold')}>{!myTurn && !displayedCall ? 'Check / Fold' : 'Fold'}</button>
+                    <button className="fold" disabled={controlsBusy || (myTurn && !l) || (!myTurn && !canQueueAction)} aria-pressed={!myTurn && preaction === (displayedCall ? 'fold' : 'check-fold')} onClick={() => myTurn ? requestFold() : selectPreaction(displayedCall ? 'fold' : 'check-fold')}>{!myTurn && !displayedCall ? 'Check / Fold' : 'Fold'}</button>
                     <button className="secondary check-call" disabled={controlsBusy || (myTurn && !l) || (!myTurn && (!canQueueAction || Boolean(displayedCall)))} aria-pressed={!myTurn && preaction === 'check'} onClick={() => myTurn ? send(l?.call ? 'call' : 'check') : selectPreaction('check')}>{displayedCall ? `Call ${fmt(displayedCall)}` : 'Check'}</button>
                     <button className="primary" disabled={!myTurn || controlsBusy || !l?.canRaise || !raiseValid} onClick={() => void send('raise', { amount: raise })}>
                       <span className="raise-button-label">Raise</span>
@@ -935,7 +960,7 @@ export default function Home() {
     </div>}
 
     {panel && <div className={`modal-backdrop ${room && panel === 'info' ? 'table-sheet-backdrop' : ''}`} onClick={closeTablePanel}>
-      <section role="dialog" aria-modal="true" aria-label={panel === 'confirm' ? (confirm === 'stand_up' ? 'Confirm stand up' : 'Confirm terminate game') : panel === 'ledger' ? (finalRankings ? 'Final Game Rankings' : 'Current Game Rankings') : panel === 'info' ? 'Game Info' : 'Table controls'} className={`modal ${panel === 'menu' ? 'compact-menu' : ''} ${panel === 'confirm' ? 'confirmation-dialog' : ''} ${panel === 'ledger' ? 'wide rankings-card' : room && panel === 'info' ? 'table-sheet' : ''}`} onClick={e => e.stopPropagation()}>
+      <section role="dialog" aria-modal="true" aria-label={panel === 'fold-confirm' ? 'Confirm fold when checking is free' : panel === 'confirm' ? (confirm === 'stand_up' ? 'Confirm stand up' : 'Confirm terminate game') : panel === 'ledger' ? (finalRankings ? 'Final Game Rankings' : 'Current Game Rankings') : panel === 'info' ? 'Game Info' : 'Table controls'} className={`modal ${panel === 'menu' ? 'compact-menu' : ''} ${panel === 'confirm' || panel === 'fold-confirm' ? 'confirmation-dialog' : ''} ${panel === 'ledger' ? 'wide rankings-card' : room && panel === 'info' ? 'table-sheet' : ''}`} onClick={e => e.stopPropagation()}>
         <button className="modal-close icon-button" onClick={closeTablePanel} aria-label={finalRankings ? "Close and return to lobby" : "Close"}>
           <X size={20} />
         </button>
@@ -1048,6 +1073,15 @@ export default function Home() {
             <button onClick={exit}>Return to Lobby</button>
           </div>
         </>}
+
+        {panel === 'fold-confirm' && <div className="confirm">
+          <h2>You can check for free</h2>
+          <p>Fold anyway? Your turn timer continues while this is open.</p>
+          <div className="confirm-actions">
+            <button className="primary" disabled={controlsBusy || !foldConfirmationValid(foldDecision, room)} onClick={() => void confirmFreeAction('check')}>Check</button>
+            <button className="secondary" disabled={controlsBusy || !foldConfirmationValid(foldDecision, room)} onClick={() => void confirmFreeAction('fold')}>Fold Anyway</button>
+          </div>
+        </div>}
 
         {panel === 'confirm' && <div className="confirm">
             <h2>{confirm === 'stand_up' ? 'Stand up?' : 'Terminate this game?'}</h2>

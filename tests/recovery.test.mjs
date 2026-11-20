@@ -272,3 +272,66 @@ test('missed turn expires normally; old unaccepted action cannot execute in the 
   assert.ok(back.legal,'Returned player can act on their next turn');
   await service.execute(actor,commandEnvelope({type:back.legal.call?'call':'check',code:r.code},back),nextAt+2);
 });
+
+test('healthy pong/chat traffic cannot hide stale state; HTTP recovers within the same hand', async t => {
+  let snapshotReads = 0, commandSends = 0;
+  const f = browser(t, async (url, options, room) => {
+    if (url.startsWith('/api/poker?')) {
+      snapshotReads++;
+      return { data: { ...room, phase: 'flop', version: 5, turn: host } };
+    }
+  }, () => commandSends++);
+  await settle();
+  f.room.phase = 'flop';
+  f.sockets[0].emit(f.state);
+  f.sockets[0].emit({protocol:4, type:'social', entry:{text:'still connected'}});
+  t.mock.timers.tick(3000);
+  await settle();
+  assert.ok(snapshotReads > 0, 'Independent snapshot audit runs despite healthy pongs');
+  assert.equal(f.updates.at(-1).room.version, 5);
+  assert.equal(f.updates.at(-1).room.handStartedAt, 123, 'Recovery does not wait for a new hand');
+  assert.equal(f.statuses.at(-1), 'connected');
+  assert.equal(commandSends, 0, 'Resync never replays a betting action');
+  assert.equal(f.client.hasPending(), false);
+});
+
+test('a slow lobby does not prevent the known table snapshot from recovering', async t => {
+  const f = browser(t, async (url, options, room) => {
+    if (url.includes('/api/lobby')) return new Promise(() => {});
+    if (url.startsWith('/api/poker?')) return {data:{...room, phase:'turn', version:8}};
+  });
+  await settle();
+  f.room.phase = 'turn';
+  f.sockets[0].emit(f.state);
+  t.mock.timers.tick(3000);
+  await settle();
+  assert.equal(f.updates.at(-1).room.version, 8);
+  assert.equal(f.statuses.at(-1), 'connected');
+});
+
+test('active tables receive periodic HTTP audits even while full socket snapshots keep arriving', async t => {
+  let reads = 0;
+  const f = browser(t, async (url, options, room) => {
+    if (url.startsWith('/api/poker?')) { reads++; return {data:{...room, phase:'river'}}; }
+  });
+  await settle();
+  f.room.phase = 'river';
+  f.sockets[0].emit(f.state);
+  t.mock.timers.tick(3000);
+  await settle();
+  const initial = reads;
+  for (let i=0; i<4; i++) {
+    f.sockets[0].emit(f.state);
+    t.mock.timers.tick(3000);
+    await settle();
+  }
+  assert.ok(reads > initial, 'Full-state traffic does not disable the independent audit');
+});
+
+test('late older snapshots never roll the published table backwards', async t => {
+  const f = browser(t, async () => {});
+  await settle();
+  f.sockets[0].emit({...f.state, room:{...f.room, version:10}});
+  f.sockets[0].emit({...f.state, room:{...f.room, version:8}});
+  assert.equal(f.updates.at(-1).room.version, 10);
+});

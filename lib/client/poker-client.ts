@@ -4,6 +4,8 @@ export type Connection = 'connecting' | 'connected' | 'reconnecting' | 'offline'
 type TableState = { lobby: any; room: Snapshot | null };
 const RATE_LIMIT_RETRY_MS = 5000;
 const BET_HTTP_FALLBACK_MS = 250;
+const STATE_STALE_MS = 6000;
+const STATE_AUDIT_MS = 12000;
 export class PokerClient {
   private socket?: WebSocket;
   private replies = new Map<string, { resolve: (value: Snapshot) => void; reject: (error: any) => void }>();
@@ -178,14 +180,17 @@ export class PokerClient {
     reaction?: (event: any, serverTime: number) => void, social?: (entry: any) => void,
     recovered?: (message: string) => void) {
     let stopped = false, retry: ReturnType<typeof setTimeout> | undefined, attempts = 0;
-    let lastContact = 0, lastHttpSnapshot = 0, lastPoll = 0, polling = false, recovering = false, dialing = false, authChecking = false;
+    let lastContact = 0, lastStateAt = 0, lastHttpSnapshot = 0, lastPoll = 0, polling = false, recovering = false, dialing = false, authChecking = false;
     let lastLobby: any = { activeGame: null }, latestRoom: Snapshot | null = null, waitingForCommand = false;
     const publish = (state: TableState) => {
       if (stopped) return;
       lastLobby = state.lobby;
       if (state.room) {
         this.roomCode = state.room.code;
-        if (latestRoom?.code !== state.room.code || state.room.version >= latestRoom.version) latestRoom = state.room;
+        if (latestRoom?.code !== state.room.code || state.room.version >= latestRoom.version) {
+          latestRoom = state.room;
+          lastStateAt = Date.now();
+        } else state = { ...state, room: latestRoom };
       }
       update(state);
       if (this.clearSupersededBet(latestRoom)) recovered?.('Table updated. Check the current action before playing.');
@@ -280,9 +285,20 @@ export class PokerClient {
       if (stopped || polling || Date.now() - lastPoll < 2500) return;
       polling = true; lastPoll = Date.now();
       try {
+        // Recover a known table first: a slow lobby must not delay an active turn.
+        const knownCode = this.roomCode;
+        if (knownCode) {
+          const room = await this.request(undefined, knownCode, true);
+          if (stopped || this.roomCode !== knownCode) return;
+          lastHttpSnapshot = Date.now();
+          publish({ lobby: lastLobby, room });
+          void recover();
+        }
         const lobby = await PokerClient.auth('lobby');
+        if (stopped) return;
         const code = this.roomCode || lobby.activeGame?.code;
-        const room = code ? await this.request(undefined, code, true) : null;
+        const room = code ? code === knownCode ? latestRoom : await this.request(undefined, code, true) : null;
+        if (stopped) return;
         lastHttpSnapshot = Date.now();
         publish({ lobby, room });
         void recover();
@@ -296,7 +312,12 @@ export class PokerClient {
         if (lastContact && Date.now() - lastContact > 10000) { unavailable(); this.socket.close(); }
         else this.socket.send(JSON.stringify({ protocol: PROTOCOL_VERSION, type: 'ping' }));
       } else if (!dialing) { clearTimeout(retry); dial(); }
-      if (!lastContact || Date.now() - lastContact > 6000 || this.hasPending()) void poll();
+      // Pong/chat traffic proves transport health, not that the table is current.
+      // Audit active tables independently, even while the socket keeps talking.
+      const active = latestRoom && ['preflop', 'flop', 'turn', 'river', 'runout_vote', 'showdown'].includes(latestRoom.phase);
+      const staleState = active && Date.now() - lastStateAt >= STATE_STALE_MS;
+      const auditDue = active && Date.now() - lastHttpSnapshot >= STATE_AUDIT_MS;
+      if (!lastContact || Date.now() - lastContact > 6000 || staleState || auditDue || this.hasPending()) void poll();
       void recover();
     };
     const refresh = () => {

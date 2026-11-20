@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { freeCheckDecision, foldConfirmationValid } from '../lib/client/free-check-fold.mjs';
 import { showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack, boardPlan, slowBoardPlan } from '../lib/table-presentation.mjs';
 test('all-in announcement precedes a slow runout and each run waits for the previous payout', () => {
   const p = showdownTiming(0, 5, 2, 2, [1, 1], true),
@@ -215,4 +216,21 @@ test('a split animates its actual odd-chip shares at the same instant', () => {
   assert.deepEqual(awards.map(a=>a.amount),[51,50]);
   assert.equal(awards[0].at,awards[1].at);
   assert.ok(plan.runs[0].endAt >= plan.runs[0].resultAt + 3800);
+});
+
+test('free-check fold confirmation is limited to the current free betting decision', () => {
+  const room = { code:'ABC234', me:'hero', turn:'hero', phase:'flop', handStartedAt:123,
+    actionSeq:5, currentBet:0, version:4, legal:{call:0,min:50,max:1000} };
+  const decision = freeCheckDecision(room);
+  assert.ok(decision);
+  assert.equal(foldConfirmationValid(decision, {...room, version:5}), true, 'Unrelated state updates preserve the same decision');
+  for (const changed of [
+    {...room, legal:{...room.legal,call:50}}, {...room, legal:null},
+    {...room, turn:'other'}, {...room, me:'other'}, {...room, code:'BCD234'},
+    {...room, handStartedAt:456}, {...room, phase:'turn'}, {...room, actionSeq:6},
+    {...room, phase:'showdown'}
+  ]) assert.equal(foldConfirmationValid(decision, changed), false, 'A stale prompt cannot authorize an action');
+  assert.equal(freeCheckDecision({...room, legal:{...room.legal,call:50}}), null);
+  assert.equal(freeCheckDecision({...room, turn:'other'}), null, 'Queued Check/Fold is not interrupted by a prompt');
+  assert.equal(foldConfirmationValid(null, room), false);
 });
