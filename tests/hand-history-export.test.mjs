@@ -100,5 +100,35 @@ test('multi-game CSV preserves per-hand visibility and emits a single header', (
   ], host);
   assert.equal(csv.match(/"Hand ID"/g).length, 1);
   assert.match(csv, /ABC234[\s\S]*5s 6s[\s\S]*7s 8s[\s\S]*BCD234[\s\S]*9h Th/);
-  assert.doesNotMatch(csv, /CDE234|Qs Jh/);
+  assert.match(csv, /CDE234/);
+  assert.doesNotMatch(csv, /Qs Jh/);
+});
+
+
+test('a nonparticipant sees every audited hand with public cards only', () => {
+  const hand = {
+    number: 1, game: 'NLH', completedAt: Date.UTC(2026, 10, 20),
+    board: [card('2c'), card('3d'), card('4h')],
+    showdown: [{ name: 'Shown', cards: [card('5s'), card('6s')] }],
+    reveals: [{ name: 'Revealed', cards: [card('7s'), card('8s')] }],
+    audit: { dealerSeat: 0, players: [
+      { playerId: host, name: 'Host', seat: 0, startingStack: 1000, holeCards: [card('Ac'), card('Kd')] },
+      { playerId: 'folder', name: 'Folder', seat: 1, startingStack: 1000, holeCards: [card('Qs'), card('Jh')] }
+    ], actions: [{ playerId: 'folder', type: 'fold', street: 'preflop', chipsAdded: 0, stackAfter: 1000 }] }
+  };
+  const games = [{ code: 'ABC234', hands: [hand] }];
+  const csv = handDataCsv(games, 'observer');
+  assert.match(csv, /ABC234/);
+  assert.match(csv, /"fold"/);
+  assert.match(csv, /2c 3d 4h/);
+  assert.match(csv, /Shown: 5s 6s/);
+  assert.match(csv, /Revealed: 7s 8s/);
+  assert.doesNotMatch(csv, /Ac Kd|Qs Jh/);
+  const columns = csv.split('\r\n')[0].split(',');
+  const heroColumn = columns.indexOf('"Hero Hole Cards"');
+  assert.ok(heroColumn >= 0);
+  for (const row of csv.split('\r\n').slice(1)) assert.equal(row.split(',')[heroColumn], '""');
+  assert.match(handDataCsv(games, host), /Ac Kd/);
+  assert.doesNotMatch(handDataCsv(games, host), /Qs Jh/);
+  assert.match(handDataCsv(games, 'folder'), /Qs Jh/);
 });

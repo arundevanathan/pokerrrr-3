@@ -176,7 +176,7 @@ export function GameHistory({
       setExporting(false);
     }
   }
-  const eligibleGames = games.filter(game => game.completed !== 0 && game.players.some((player: any) => player.key === viewerKey));
+  const eligibleGames = games.filter(game => game.completed > 0);
   return <section className="game-history" aria-label="Previous games">
 
     <div className="history-toolbar">
@@ -203,7 +203,7 @@ export function GameHistory({
 
           {exportMode === 'games' ? <>
             <fieldset className="hand-export-games" disabled={exporting}>
-              <legend>Completed games you played</legend>
+              <legend>Completed club games</legend>
               {eligibleGames.map(game => <label key={game.code}>
                 <input type="checkbox" checked={exportGames.includes(game.code)} onChange={e => {
                   const checked = e.target.checked;
@@ -221,7 +221,7 @@ export function GameHistory({
             </div>
             <p className="settlement-note">Includes games completed on these dates in India time.</p>
           </>}
-          <p className="settlement-note">Includes your hole cards, public boards and payouts, and cards publicly shown at showdown or voluntarily revealed.</p>
+          <p className="settlement-note">Includes all selected games. Your own hole cards appear only in hands you played; other cards appear only if publicly shown at showdown or voluntarily revealed.</p>
           {exportError && <p className="error" role="alert">{exportError}</p>}
           <button className="primary full" disabled={exporting || (exportMode === 'games' ? !exportGames.length : !exportFrom || !exportTo)}>
             {exporting ? 'Preparing export…' : 'Download CSV'}

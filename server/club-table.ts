@@ -124,8 +124,8 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
           const code = url.searchParams.get('code') || '';
           if (request.method === 'GET' && !/^[A-Z2-9]{6}$/.test(code)) throw new TableError('Choose a valid game', 400);
           const archives = request.method === 'POST'
-            ? await this.service.handData(await this.body(request), token)
-            : [await this.service.handHistory(code, token)];
+            ? await this.service.handData(await this.body(request))
+            : [await this.service.handHistory(code)];
           const body = handDataCsv(archives, token);
           if (!body.includes('\r\n')) throw new TableError('No exportable hands in this selection', 404);
           return new Response(body, {

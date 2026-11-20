@@ -169,10 +169,9 @@ export class TableService {
       nextCursor: records.length > 20 ? `${last.closedAt}:${last.code}` : null
     };
   }
-  async handHistory(code, viewerId) {
+  async handHistory(code) {
     const session = await this.storage.get(`session:${code}`);
     requireState(session, 'Game history is unavailable', 404);
-    requireState(session.players?.some(player => player.id === viewerId), 'You did not play in this game', 403);
     const hands = [];
     let startAfter;
     for (;;) {
@@ -183,19 +182,17 @@ export class TableService {
     }
     return { code, session, hands };
   }
-  async handData({ codes, from, to } = {}, viewerId) {
+  async handData({ codes, from, to } = {}) {
     if (codes !== undefined) {
       requireState(!from && !to && Array.isArray(codes) && codes.length > 0 &&
         codes.every(code => typeof code === 'string' && /^[A-Z2-9]{6}$/.test(code)), 'Choose valid games', 400);
-      return Promise.all([...new Set(codes)].map(code => this.handHistory(code, viewerId)));
+      return Promise.all([...new Set(codes)].map(code => this.handHistory(code)));
     }
     historyRange(from, to, true);
     const sessions = await this.completedGames({ from, to });
     const archives = [];
     for (const session of sessions) {
-      if (session.players?.some(player => player.id === viewerId)) {
-        archives.push(await this.handHistory(session.code, viewerId));
-      }
+      archives.push(await this.handHistory(session.code));
     }
     return archives;
   }

@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.1.12 — 20 November 2026
+
+- Let signed-in club players export all completed games by selection or date range, including games they did not play.
+- Preserve viewer-specific hole-card privacy in every exported hand.
+
+[Release notes](docs/releases/v2.1.12.md)
+
 ## v2.1.11 — 19 November 2026
 
 - Improve hole-card proportions and rank/suit placement across NLH and Omaha, with larger NLH indices.

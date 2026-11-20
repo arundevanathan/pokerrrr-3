@@ -35,7 +35,7 @@ export async function runApiSuite(base, restart, environment = 'staging') {
   localTarget(base);
   const [host, friend, observer] = testPlayers.map(p => p.id),
     cookies = new Map();
-  for (const path of ['/api/history', '/api/settlement?from=2026-01-01&to=2026-12-31']) {
+  for (const path of ['/api/history', '/api/hand-history?code=ABC234', '/api/settlement?from=2026-01-01&to=2026-12-31']) {
     const deniedHistory = await request(new URL(path, base));
     assert.equal(deniedHistory.status, 401);
     await deniedHistory.arrayBuffer();
@@ -436,6 +436,20 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     })).json();
     assert.equal(participantHistory.viewerKey, await historyPlayerKey(host));
     assert.ok(participantHistory.games[0].players.some(p => p.key === participantHistory.viewerKey));
+    // Signed-in observers can export the whole club, with no private hero cards.
+    for (const selection of [{ codes: [code] }, { from: indiaDate(room.closedAt), to: indiaDate(room.closedAt) }]) {
+      const exported = await request(new URL('/api/hand-history', base), {
+        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(selection)
+      });
+      assert.equal(exported.status, 200);
+      const csv = await exported.text();
+      assert.ok(csv.includes(code));
+      const lines = csv.split('\r\n');
+      const heroColumn = lines[0].split(',').indexOf('"Hero Hole Cards"');
+      assert.ok(lines.length > 1 && heroColumn >= 0);
+      for (const line of lines.slice(1)) assert.equal(line.split(',')[heroColumn], '""');
+      for (const id of [host, friend]) assert.ok(!csv.includes(id));
+    }
     const day = indiaDate(room.closedAt),
       settled = await (await request(new URL(`/api/settlement?from=${day}&to=${day}`, base), {
         headers
