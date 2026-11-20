@@ -43,7 +43,16 @@ test('Away preserves current turn and deadline, excludes future hands, return re
   act(r, actor, 'fold', 0, 11002);
   tick(r, r.payoutFinishedAt); assert.equal(r.nextDealAt, null);
   command(r, actor, { type: 'set_away', away: false }, r.payoutFinishedAt + 1);
-  tick(r, r.payoutFinishedAt + 1); assert.ok(r.nextDealAt);
+  tick(r, r.payoutFinishedAt + 1);
+  assert.equal(r.nextDealAt, null, 'Returning does not skip the open Rabbit Hunt window');
+  tick(r, r.rabbitHunt.deadline - 1);
+  assert.equal(r.nextDealAt, null);
+  tick(r, r.rabbitHunt.deadline);
+  assert.equal(r.rabbitHunt.expiredAt, r.rabbitHunt.deadline);
+  assert.ok(r.nextDealAt > r.rabbitHunt.deadline, 'Auto-deal countdown resumes after Rabbit Hunt');
+  tick(r, r.nextDealAt);
+  assert.equal(r.phase, 'preflop');
+  assert.equal(r.players.find(p => p.id === actor).inHand, true);
 });
 test('cash-out, ledger, receipt and termination are atomic and idempotent across restart', async () => {
   const storage = new MemoryStorage(), service = new TableService(storage);
@@ -123,8 +132,15 @@ test('session timer starts on the first deal, extends from its deadline and fini
   act(r, r.turn, 'fold', 0, r.deadline);
   assert.equal(nextDeadline(r), r.payoutFinishedAt);
   tick(r, r.payoutFinishedAt);
+  assert.equal(r.phase, 'showdown', 'Session closure waits for the open Rabbit Hunt window');
+  tick(r, r.rabbitHunt.deadline - 1);
+  assert.equal(r.phase, 'showdown');
+  tick(r, r.rabbitHunt.deadline);
   assert.equal(r.phase, 'closed');
+  assert.equal(r.nextDealAt, null, 'An expired session must not deal another hand');
   assert.equal(r.players.reduce((total,p) => total + p.cashout,0), 2000);
+  tick(r, r.rabbitHunt.deadline + 1);
+  assert.equal(r.players.reduce((total,p) => total + p.cashout,0), 2000, 'Closure never pays twice');
 });
 
 test('two disconnected turns sit the player out and a connected timeout resets the streak', () => {

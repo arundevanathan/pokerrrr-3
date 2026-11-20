@@ -412,12 +412,19 @@ test('termination and pending seat actions survive restart, alarm closes and arc
   assert.equal(saved.players[0].left, false, 'Departure waits for payout');
   assert.equal(saved.players[1].away, true);
   await recovered.advance(saved.payoutFinishedAt);
+  assert.equal(await f.storage.get('active'), f.code, 'Game remains active during Rabbit Hunt');
+  saved = await f.storage.get(`room:${f.code}`);
+  assert.equal(saved.players[0].left, true, 'Pending departure still completes after payout');
+  const closesAt = Math.max(saved.payoutFinishedAt, saved.rabbitHunt.deadline);
+  await new TableService(f.storage).advance(closesAt - 1);
+  assert.equal(await f.storage.get('active'), f.code);
+  await new TableService(f.storage).advance(closesAt);
   assert.equal(await f.storage.get('active'), undefined);
   const archived = await f.storage.get(`session:${f.code}`);
   assert.equal(archived.completed, 1);
   assert.equal(archived.players.reduce((n, p) => n + p.cashout - p.buyins, 0), 0);
   assert.ok(await f.storage.get(`hand:${f.code}:0000000001`));
-  await recovered.advance(saved.payoutFinishedAt + 1);
+  await recovered.advance(closesAt + 1);
   assert.deepEqual(await f.storage.get(`session:${f.code}`), archived);
 });
 

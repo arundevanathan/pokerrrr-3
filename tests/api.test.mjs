@@ -402,7 +402,13 @@ export async function runApiSuite(base, restart, environment = 'staging') {
     }, room));
     if (room.phase !== 'closed') {
       assert.equal(room.terminationPending, true);
-      await sleep(Math.max(0, room.payoutFinishedAt - Date.now()) + 300);
+      // A folded-out hand may keep Rabbit Hunt open beyond the payout animation.
+      const rabbitDeadline = room.rabbitHunt && !room.rabbitHunt.requestedBy && !room.rabbitHunt.expiredAt
+        ? room.rabbitHunt.deadline : 0;
+      const closesAt = Math.max(room.payoutFinishedAt, rabbitDeadline);
+      await sleep(Math.max(0, closesAt - Date.now()));
+      // Verify the persisted alarm closes the game without another mutation.
+      await waitFor(() => liveHost.messages.find(m => m.room?.phase === 'closed'), 5000);
       room = await api(host, null, code);
     }
     assert.equal(room.phase, 'closed');
