@@ -83,9 +83,11 @@ export class SocialService {
   async drain(code, now = Date.now()) {
     if (!code) return [];
     return this.storage.transaction(async tx => {
-      const room = await tx.get(`room:${code}`);
       const meta = await tx.get(metadataKey(code));
-      if (!room || !meta) return [];
+      if (!meta || !meta.queue.length && !meta.playing.length) return [];
+      const room = await tx.get(`room:${code}`);
+      if (!room) return [];
+      const before = JSON.stringify(meta);
       meta.playing = meta.playing.filter(until => until > now);
       meta.queue = meta.queue.filter(q => reactionDefinition(q.reaction) && q.expiresAt > now && room.phase !== 'closed'
         && room.players.some(p => !p.left && p.id === q.targetId && p.seat === q.to.seat));
@@ -97,7 +99,7 @@ export class SocialService {
         events.push(event);
         meta.playing.push(event.startedAt + reactionDefinition(event.reaction).duration);
       }
-      await tx.put(metadataKey(code), meta);
+      if (JSON.stringify(meta) !== before) await tx.put(metadataKey(code), meta);
       return events;
     });
   }

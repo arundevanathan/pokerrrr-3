@@ -1,12 +1,13 @@
 import { resetStagingHistory } from '../lib/staging-history.mjs';
 import { historyPlayerKey, historyViewerKey } from '../lib/game-history.mjs';
 import { DurableObject } from 'cloudflare:workers';
-import { TableService, TableError, nextDeadline } from './table-service.mjs';
+import { TableService, TableError, nextDeadline, scheduleAlarm } from './table-service.mjs';
 import { PlayerAuth, sessionCookie } from './player-auth.mjs';
 import { PROTOCOL_VERSION } from '../lib/protocol/poker.mjs';
 import { SocialService } from './social-service.mjs';
 import { presenceView } from '../lib/presence.mjs';
 import { reactionsEnabled } from '../lib/reactions.mjs';
+import { view } from '../lib/poker.mjs';
 import { handDataCsv } from '../lib/hand-history-export.mjs';
 type Peer = {
   playerId: string;
@@ -387,35 +388,46 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
       }
     };
   }
-  private async sendState(socket: WebSocket, changedCode?: string) {
+  // One read context per broadcast; only the privacy-filtered view is sent.
+  // This context never survives the serialized event or a storage commit.
+  private async stateContext(changedCode?: string) {
+    const activeCode = await this.ctx.storage.get<string>('active');
+    const code = changedCode || activeCode;
+    const raw = code ? await this.ctx.storage.get<any>(`room:${code}`) : null;
+    const activeRoom = activeCode === code ? raw : activeCode
+      ? await this.ctx.storage.get<any>(`room:${activeCode}`) : null;
+    return { raw, activeRoom, connected: (await this.presence()).connected };
+  }
+  private async sendState(socket: WebSocket, changedCode?: string, context?: Awaited<ReturnType<ClubTable['stateContext']>>) {
     const peer = socket.deserializeAttachment() as Peer;
     const player = await this.authorized(peer);
     if (!player) {
       socket.close(1008, 'Please sign in again');
       return;
     }
-    const lobby = await this.lobby(player.id);
-    const code = changedCode || lobby.activeGame?.code;
-    let room = null;
-    if (code) {
-      const raw = await this.ctx.storage.get<any>(`room:${code}`);
-      if (raw) room = await this.snapshot(player.id, code);
+    const { raw, activeRoom, connected } = context || await this.stateContext(changedCode);
+    const lobby = { activeGame: activeRoom ? {
+      code: activeRoom.code, phase: activeRoom.phase, settings: activeRoom.settings,
+      players: activeRoom.players.filter((p: any) => !p.left).map((p: any) => ({ name: p.name })),
+      joined: activeRoom.players.some((p: any) => p.id === player.id && !p.left)
+    } : null };
+    let room = raw ? view(raw, player.id, Date.now(), true) : null;
+    if (room) {
+      const aliases = new Set(raw.players.flatMap((p: any, index: number) => connected.has(p.id)
+        ? [p.id === room.me ? p.id : `seat-${p.seat}-${index}`] : []));
+      room = { ...room, players: room.players.map((p: any) => ({ ...p, disconnected: !aliases.has(p.id) })) };
     }
-    socket.send(JSON.stringify({
-      protocol: PROTOCOL_VERSION,
-      type: 'state',
-      lobby,
-      room
-    }));
+    socket.send(JSON.stringify({ protocol: PROTOCOL_VERSION, type: 'state', lobby, room }));
   }
   private async broadcast(code?: string) {
-    for (const socket of this.ctx.getWebSockets()) {
+    const sockets = this.ctx.getWebSockets();
+    if (!sockets.length) return;
+    const context = await this.stateContext(code);
+    for (const socket of sockets) {
       try {
-        await this.sendState(socket, code);
+        await this.sendState(socket, code, context);
       } catch {
-        try {
-          socket.close(1011, 'Please reconnect');
-        } catch { }
+        try { socket.close(1011, 'Please reconnect'); } catch { }
       }
     }
   }
@@ -448,8 +460,7 @@ export class ClubTable extends DurableObject<Cloudflare.Env> {
     const room = await this.ctx.storage.get<any>(`room:${code}`);
     const presenceDeadline = (await this.presence()).deadline;
     const deadlines = [nextDeadline(room), await this.social.deadline(code), Number.isFinite(presenceDeadline) ? presenceDeadline : null].filter((t): t is number => t !== null);
-    if (deadlines.length) await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, Math.min(...deadlines)));
-    else await this.ctx.storage.deleteAlarm();
+    await scheduleAlarm(this.ctx.storage, deadlines.length ? Math.max(Date.now() + 1, Math.min(...deadlines)) : null);
   }
   private authorized(peer: Peer) {
     return this.auth.session(new Request('https://dunzo.invalid', {

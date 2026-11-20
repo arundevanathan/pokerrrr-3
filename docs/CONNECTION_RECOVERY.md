@@ -98,3 +98,22 @@ Use https://dunzo-club-staging.arun-devanathan.workers.dev/ with test chips only
 Browser fault injection is deterministic. Physical Android/iOS keyboard,
 background-suspension and network-switch behaviour still need the phone checks.
 This recovery behaviour ships in production v2.1.1. Use staging for deliberate fault injection.
+
+## Storage efficiency on staging (20 November 2026)
+
+- Reaction maintenance skips empty queues and persists metadata only when it changes.
+- Alarm scheduling compares the durable alarm before setting/deleting it. There is no
+  in-memory alarm cache: consumed alarms and restarts must still re-arm deadlines.
+- Ordinary poker saves retain the active-game pointer without rewriting it. Starting,
+  closing and restoring a missing pointer still update it transactionally.
+- Each socket broadcast loads one event-scoped raw room/lobby/presence context.
+  Authentication is still checked for every socket and `view()` creates a separate
+  privacy-filtered snapshot for each recipient. No raw room is sent or cached across
+  events. HTTP presence lease timing is unchanged.
+- Accepted actions, receipts, accounting and hand archives still commit atomically.
+
+The counted regression test executes 100 idle social drains after chat with zero
+metadata writes, while reaction start and expiry each persist their changes. Alarm
+coverage includes repeated deadlines, earlier deadlines and consumption/re-arming.
+Production savings must be compared over similar player-hours/hands after promotion;
+these tests are not a measured production reduction percentage.

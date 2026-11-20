@@ -29,6 +29,15 @@ function newCode() {
   return [...crypto.getRandomValues(new Uint8Array(6))].map(n => alphabet[n % 32]).join('');
 }
 
+// Compare the durable alarm, rather than caching it: alarm delivery consumes it.
+export async function scheduleAlarm(storage, deadline) {
+  const current = await storage.getAlarm();
+  if (deadline === current) return;
+  if (deadline === null) {
+    if (current !== null) await storage.deleteAlarm();
+  } else await storage.setAlarm(deadline);
+}
+
 // Storage transactions include state, receipt, archive and the next alarm.
 // No in-memory room cache: restart and retry always read the durable source.
 export class TableService {
@@ -107,12 +116,11 @@ export class TableService {
         })),
         completed: room.completed
       });
-    } else await tx.put('active', room.code);
+    } else if (active !== room.code) await tx.put('active', room.code);
     // Updating a closed, historical session must not cancel the live table alarm.
     if (!active || active === room.code) {
       const deadline = nextDeadline(room);
-      if (deadline !== null) await tx.setAlarm(deadline);
-  else await tx.deleteAlarm();
+      await scheduleAlarm(tx, deadline);
     }
   }
   // Read the full archive so settlement includes games beyond the visible UI page.
@@ -330,7 +338,7 @@ export class TableService {
     return this.storage.transaction(async tx => {
       const code = await tx.get('active');
       if (!code) {
-        await tx.deleteAlarm();
+        await scheduleAlarm(tx, null);
         return null;
       }
       const previous = await tx.get(`room:${code}`),
@@ -338,8 +346,7 @@ export class TableService {
       if (tick(room, now, true, connected)) await this.save(tx, previous, room);
   else {
         const deadline = nextDeadline(room, Boolean(connected));
-        if (deadline !== null) await tx.setAlarm(Math.max(now + 1, deadline));
-  else await tx.deleteAlarm();
+        await scheduleAlarm(tx, deadline === null ? null : Math.max(now + 1, deadline));
       }
       return code;
     });

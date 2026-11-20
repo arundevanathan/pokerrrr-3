@@ -197,3 +197,24 @@ test('chat client retries an uncertain send with the same ID across reload and k
   assert.equal(sent[2].requestId, sent[0].requestId);
   assert.equal(stored.size, 0);
 });
+
+test('idle reaction maintenance performs no writes; queue expiry still persists after restart', async () => {
+  const f = await fixture();
+  await f.social.send(a, message(), 'message', 10000);
+  const originalPut = f.storage.put.bind(f.storage);
+  let writes = 0;
+  f.storage.put = async (...args) => { writes++; return originalPut(...args); };
+  for (let i = 0; i < 100; i++) assert.deepEqual(await f.social.drain('ABC234', 11000 + i), []);
+  assert.equal(writes, 0, 'Chat-only heartbeats must not rewrite empty reaction metadata');
+  await f.social.send(a, reaction(), 'reaction', 12000);
+  writes = 0;
+  await new SocialService(f.storage).drain('ABC234', 12000);
+  assert.equal(writes, 1, 'Starting an effect persists removal from the queue');
+  writes = 0;
+  await f.social.drain('ABC234', 12001);
+  assert.equal(writes, 0, 'An unchanged playing effect needs no write');
+  await f.social.drain('ABC234', 20000);
+  assert.equal(writes, 1, 'Expired playing state is cleaned up once');
+  await f.social.drain('ABC234', 20001);
+  assert.equal(writes, 1);
+});

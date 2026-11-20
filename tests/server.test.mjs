@@ -22,6 +22,7 @@ class MemoryStorage {
   async delete(key) {
     this.values.delete(key);
   }
+  async getAlarm() { return this.alarm; }
   async setAlarm(at) {
     this.alarm = at;
   }
@@ -494,4 +495,40 @@ test('hand data selects all completed club games by checkbox or India date', asy
   assert.deepEqual(await service.handData({ from: '2026-11-19', to: '2026-11-19' }, 'viewer'), []);
   await assert.rejects(service.handData({ codes: ['CDE234'] }), /unavailable/i);
   await assert.rejects(service.handData({ codes: ['ABC234'], from: '2026-11-20' }, 'viewer'), /valid games/i);
+});
+
+test('alarm scheduling skips unchanged deadlines but re-arms consumed alarms', async () => {
+  const { scheduleAlarm } = await import('../server/table-service.mjs');
+  const storage = new MemoryStorage();
+  let writes = 0;
+  const set = storage.setAlarm.bind(storage), remove = storage.deleteAlarm.bind(storage);
+  storage.setAlarm = async at => { writes++; return set(at); };
+  storage.deleteAlarm = async () => { writes++; return remove(); };
+  await scheduleAlarm(storage, null);
+  await scheduleAlarm(storage, 10000);
+  for (let i = 0; i < 100; i++) await scheduleAlarm(storage, 10000);
+  assert.equal(writes, 1);
+  await scheduleAlarm(storage, 9000);
+  assert.equal(storage.alarm, 9000, 'Earlier reaction/presence deadlines replace the poker alarm');
+  storage.alarm = null; // Runtime consumes an alarm before invoking the handler.
+  await scheduleAlarm(storage, 9000);
+  assert.equal(writes, 3, 'A consumed alarm must be re-armed despite the same deadline');
+  await scheduleAlarm(storage, null);
+  await scheduleAlarm(storage, null);
+  assert.equal(writes, 4);
+});
+
+test('saving ordinary actions preserves active pointer without rewriting it', async () => {
+  const { storage, service } = await fixture();
+  const code = await storage.get('active');
+  const previous = await storage.get(`room:${code}`);
+  const put = storage.put.bind(storage);
+  let pointerWrites = 0;
+  storage.put = async (key, value) => { if (key === 'active') pointerWrites++; return put(key, value); };
+  await storage.transaction(tx => service.save(tx, previous, structuredClone(previous)));
+  assert.equal(pointerWrites, 0);
+  assert.equal(await storage.get('active'), code);
+  await storage.delete('active');
+  await storage.transaction(tx => service.save(tx, previous, structuredClone(previous)));
+  assert.equal(pointerWrites, 1, 'Missing pointer is restored atomically');
 });
