@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.14 — 21 November 2026
+
+- Unify card faces with upright corner indices and a large central suit; retain straight Omaha overlap.
+- Increase corner indices and reduce central suits on compact boards and revealed cards.
+- Redesign settlement sharing with branding, date range, results and payment rows.
+
+[Release notes](docs/releases/v2.1.14.md)
+
 ## v2.1.13 — 20 November 2026
 
 - Recover stale game snapshots independently of heartbeat traffic.
