@@ -1,0 +1,11 @@
+{
+  "tag": "v2.1.14",
+  "commit": "6aaf256b373bde4de29783b8e9568502ef39229a",
+  "workerVersion": "cf05ff0a-c8d8-4d5c-b9bc-c349040b8136",
+  "deploymentId": "953ce43f-2a61-4bf6-abee-f705ef314034",
+  "rollbackVersion": "685c8475-a017-4730-bc42-e3be8277c845",
+  "verifiedAt": "2026-11-21T11:21:20.420Z",
+  "productionUrl": "https://dunzo-club.arun-devanathan.workers.dev/",
+  "trafficPercent": 100,
+  "validation": "154 tests, TypeScript, production isolation test, production build/artifact guard and full local production multiplayer smoke passed (8 hands, 3 variants, private views, reconnect/restart, social, history, accounting). Staging card rendering reviewed. Production health matched exact release commit and multiplayer readiness; existing production namespace and migration retained."
+}
