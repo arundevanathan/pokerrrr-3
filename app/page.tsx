@@ -47,12 +47,14 @@ function sortedHoleCards(cards: number[]) {
 function Card({
   value,
   small = false,
+  compact = true,
   back = false,
   highlight = false,
   dim = false
 }: {
   value?: number;
   small?: boolean;
+  compact?: boolean;
   back?: boolean;
   highlight?: boolean;
   dim?: boolean;
@@ -64,7 +66,7 @@ function Card({
   const rank = '23456789TJQKA'[value % 13],
     suit = ['♣', '♦', '♥', '♠'][Math.floor(value / 13)];
   return <div className={`card face-card ${small ? 'small' : ''} ${'♦♥'.includes(suit) ? 'red' : ''} ${highlight ? 'winning-card' : ''} ${dim ? 'dimmed-card' : ''}`} aria-label={`${rank === 'T' ? '10' : rank} ${['clubs', 'diamonds', 'hearts', 'spades'][Math.floor(value / 13)]}${highlight ? ', winning card' : ''}`}>
-    <CardFace rank={rank === 'T' ? '10' : rank} suit={suit} />
+    <CardFace compact={compact} rank={rank === 'T' ? '10' : rank} suit={suit} />
   </div>;
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
@@ -658,7 +660,7 @@ export default function Home() {
   const personalHand = <div className="personal-hand" aria-label="Your cards">
     <div className={`personal-hole-cards cards-${me?.cards?.length || 0}`}>
       {me?.inHand && me.cards?.length ? sortedHoleCards(me.cards).map((c: number, i: number) => <span className="personal-card-wrap" style={{ zIndex: i + 1 }} key={`${room.handStartedAt || 0}:${i}`}>
-        <Card value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
+        <Card value={c} small compact={false} highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
       </span>) : <span className="personal-cards-placeholder">{room?.game || 'NLH'} · Your cards</span>}
     </div>
   </div>;
