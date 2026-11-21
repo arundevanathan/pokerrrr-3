@@ -1,5 +1,5 @@
 'use client';
-import { CardFace } from './card-face';
+import { CardFace, type CardSize } from './card-face';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2, Rabbit } from 'lucide-react';
@@ -47,14 +47,14 @@ function sortedHoleCards(cards: number[]) {
 function Card({
   value,
   small = false,
-  compact = true,
+  size = 'extra-small',
   back = false,
   highlight = false,
   dim = false
 }: {
   value?: number;
   small?: boolean;
-  compact?: boolean;
+  size?: CardSize;
   back?: boolean;
   highlight?: boolean;
   dim?: boolean;
@@ -66,7 +66,7 @@ function Card({
   const rank = '23456789TJQKA'[value % 13],
     suit = ['♣', '♦', '♥', '♠'][Math.floor(value / 13)];
   return <div className={`card face-card ${small ? 'small' : ''} ${'♦♥'.includes(suit) ? 'red' : ''} ${highlight ? 'winning-card' : ''} ${dim ? 'dimmed-card' : ''}`} aria-label={`${rank === 'T' ? '10' : rank} ${['clubs', 'diamonds', 'hearts', 'spades'][Math.floor(value / 13)]}${highlight ? ', winning card' : ''}`}>
-    <CardFace compact={compact} rank={rank === 'T' ? '10' : rank} suit={suit} />
+    <CardFace size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
   </div>;
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
@@ -660,7 +660,7 @@ export default function Home() {
   const personalHand = <div className="personal-hand" aria-label="Your cards">
     <div className={`personal-hole-cards cards-${me?.cards?.length || 0}`}>
       {me?.inHand && me.cards?.length ? sortedHoleCards(me.cards).map((c: number, i: number) => <span className="personal-card-wrap" style={{ zIndex: i + 1 }} key={`${room.handStartedAt || 0}:${i}`}>
-        <Card value={c} small compact={false} highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
+        <Card value={c} small size="normal" highlight={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === room.me && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
       </span>) : <span className="personal-cards-placeholder">{room?.game || 'NLH'} · Your cards</span>}
     </div>
   </div>;
@@ -759,7 +759,7 @@ export default function Home() {
                             {flip && <div className="board-flip-back" aria-hidden="true"><span>♠</span></div>}
                             {rabbitCard ? <><Card back /><button className="rabbit-hunt-trigger" disabled={controlsBusy} onClick={() => void send('rabbit_hunt')} aria-label={`Reveal Rabbit Hunt card, ${rabbitRemaining} seconds remaining`}>
                               <b><Rabbit size={13} aria-hidden="true" />{rabbitRemaining}s</b>
-                            </button></> : <Card value={value} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
+                            </button></> : <Card value={value} size={room.runCount === 2 ? 'extra-small' : 'small'} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
                           </div>;
                         })}
                       </div>
