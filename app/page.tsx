@@ -458,11 +458,11 @@ export default function Home() {
       sb,
       bb,
       buyin,
-      seats: 8,
+      seats: 7,
       rotation,
       games: [game]
     });
-    for (const n of ['Alex', 'Sam', 'Jamie', 'Rohan', 'Priya']) {
+    for (const n of ['Alex', 'Sam', 'Jamie', 'Rohan', 'Priya', 'Kabir']) {
       const id = playerId();
       command(r, id, {
         type: 'join',

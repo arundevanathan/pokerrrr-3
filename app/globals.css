@@ -5808,7 +5808,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Reserve the inward half of the rail seats before placing the pot/results. */
 .app.in-game .table-stage:has(.table-awards) { --felt-half-height: min(40%, 38cqw); }
 .app.in-game .table-stage .board-zone,
-.app.in-game .table-stage:has(.table-awards) .board-zone { inset: 42px 7% 38px; }
+.app.in-game .table-stage:has(.table-awards) .board-zone { inset: 34px 7% 46px; }
 .app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 180px); }
 .app.in-game .table-stage.two-runouts .pot-label { display: none; }
 .app.in-game .table-stage.two-runouts .pot-amount { font-size: 22px; line-height: 1.1; }
@@ -5842,4 +5842,11 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .app.in-game .table-stage.two-runouts .board-cards {
   width: calc(100% - 16px);
   justify-self: end;
+}
+
+/* Slightly smaller community cards; preserve the felt and seat geometry. */
+.app.in-game .table-stage:not(.two-runouts) .board-cards { width: min(100%, 240px); }
+.app.in-game .table-stage.two-runouts .board-cards { width: calc(100% - 24px); }
+@media (max-width: 360px) {
+  .app.in-game .table-stage:not(.two-runouts) .board-cards { width: min(100%, 175px); }
 }

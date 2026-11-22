@@ -297,3 +297,37 @@ test('staging reset replaces all closed history once, preserving active play and
   assert.ok(values.has('session:NEW'), 'a retry must not erase games played after the reset');
   assert.equal(stagingHistoryGames(roster.map(p => p.name === 'Dunzo' ? {...p, name: 'Arun'} : p), now)[0].players[0].name, 'Dunzo');
 });
+
+test('settlement transfers reconcile independent player balances across varied seven-player games', () => {
+  let seed = 20261122;
+  const random = limit => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed % limit;
+  };
+  for (let sample = 0; sample < 250; sample++) {
+    const expected = Array(7).fill(0), games = [];
+    for (let game = 0; game < 4; game++) {
+      const nets = Array(7).fill(0);
+      for (let hand = 0; hand < 30; hand++) {
+        const from = random(7), to = random(7), amount = random(2001);
+        nets[from] -= amount;
+        nets[to] += amount;
+      }
+      const players = nets.map((net, index) => {
+        expected[index] += net;
+        // Different buy-in totals model rebuys; earlier stand-up cash-outs are
+        // already included in cumulative cashout when the session is archived.
+        const buyins = 50000 + random(10) * 2500;
+        return {id: String(index), name: index === 0 ? 'Dunzo' : index === 1 ? 'Ishita' : `Player ${index}`, buyins, cashout: buyins + net};
+      });
+      games.push({code: `AUDIT-${game}`, closedAt: now + game, players});
+    }
+    const totals = aggregateGames(games), transfers = suggestedPayments(totals, householdPair(totals));
+    for (let index = 0; index < 7; index++) {
+      assert.equal(totals.find(p => p.id === String(index)).net, expected[index]);
+      const received = transfers.filter(p => p.to === String(index)).reduce((sum, p) => sum + p.amount, 0);
+      const sent = transfers.filter(p => p.from === String(index)).reduce((sum, p) => sum + p.amount, 0);
+      assert.equal(received - sent, expected[index]);
+    }
+  }
+});

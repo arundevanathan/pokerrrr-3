@@ -8,7 +8,7 @@ const paths: Record<string, string> = {
 export type CardSize = 'normal' | 'small' | 'extra-small';
 // Coordinates use a 70 × 100 face. Smaller cards progressively favour indices.
 const profiles = {
-  normal: { rank: 27, corner: 20, left: 18, top: 27, suitY: 31, bottomSuitY: 50 },
+  normal: { rank: 24, corner: 18, left: 18, top: 27, suitY: 31, bottomSuitY: 50 },
   small: { rank: 32, corner: 21, left: 20, top: 30, suitY: 33, bottomSuitY: 49 },
   'extra-small': { rank: 35, corner: 22, left: 21, top: 32, suitY: 33, bottomSuitY: 49 }
 } as const;
