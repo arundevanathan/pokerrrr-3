@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.15 — 22 November 2026
+
+- Give hole and revealed cards corner rank/suit indices with blank centres.
+- Give community cards centre suits and corner ranks, including both runouts.
+- Improve oval felt geometry, seven-player seating, card sizes and Omaha reveal overlap.
+- Simplify showdown payout animations and add seven-player practice with variant selection on staging.
+
+[Release notes](docs/releases/v2.1.15.md)
+
 ## v2.1.14 — 21 November 2026
 
 - Unify card faces with upright corner indices and a large central suit; retain straight Omaha overlap.
