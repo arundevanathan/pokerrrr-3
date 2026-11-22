@@ -20,8 +20,8 @@ export function CardFace({rank, suit, size = 'normal', covered = false, revealed
   // Local SVG gradients provide the same finish without platform emoji or filters.
   // Compact corner symbols use a gentler highlight to retain their dark silhouette.
   const tones = red
-    ? (community ? ['#ef354b', '#d90020', '#a80019'] : ['#e8233d', '#d90020', '#b9001b'])
-    : (community ? ['#454a52', '#171a20', '#030405'] : ['#30353c', '#15181d', '#060709']);
+    ? (community ? ['#ff7183', '#d9092b', '#7f0016'] : ['#f64b64', '#d00026', '#8d001a'])
+    : (community ? ['#777f8d', '#252b35', '#010203'] : ['#5d6572', '#1b2028', '#020304']);
   const shading = <defs><linearGradient id={gradientId} x1="0" y1="0" x2=".25" y2="1">
     <stop offset="0" stopColor={tones[0]} />
     <stop offset=".46" stopColor={tones[1]} />
