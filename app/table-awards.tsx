@@ -38,8 +38,9 @@ export function TableAwards({room, effects, run, onFocus}: {
     label = effects.settled && labels.includes(selectedPot) ? selectedPot : current.label,
     potAwards = payments.filter(p => p.label === label),
     split = potAwards.length > 1 && potAwards.some(p => p.tied),
-    awards = effects.settled || split ? potAwards : potAwards.filter(p => p.id === current.id);
-  return <div className="table-awards" aria-label={`${room.runCount === 2 ? `Run ${run} ` : ''}pot results`}>
+    awards = effects.settled || split ? potAwards : potAwards.filter(p => p.id === current.id),
+    sharedDescription = split && awards[0]?.description && awards.every(p => p.description === awards[0].description) ? awards[0].description : null;
+  return <div className={`table-awards ${split ? 'split-awards' : ''}`} aria-label={`${room.runCount === 2 ? `Run ${run} ` : ''}pot results`}>
     {labels.length > 1 ? <div className="table-pot-tabs" aria-label={`Run ${run} pots`}>
       {labels.map(pot => <button key={pot} disabled={!effects.settled} aria-pressed={pot === label} onClick={() => {
         setSelectedPot(pot);
@@ -52,8 +53,9 @@ export function TableAwards({room, effects, run, onFocus}: {
         <button className="table-winner-name" disabled={!effects.settled || award.returned} onClick={() => onFocus(award.id, run)}>
           <strong>{award.name}</strong> <b>+{fmt(award.wonAmount || award.amount)}</b>
         </button>
-        {!award.returned && award.description && <span className="table-winning-hand">{room.uncontested ? 'Wins uncontested' : award.description}</span>}
+        {!sharedDescription && !award.returned && award.description && <span className="table-winning-hand">{room.uncontested ? 'Wins uncontested' : award.description}</span>}
       </div>)}
     </div>
+    {sharedDescription && <span className="table-winning-hand shared-winning-hand">{sharedDescription}</span>}
   </div>;
 }

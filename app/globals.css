@@ -5906,3 +5906,57 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   width: 100%;
   flex: 0 0 auto;
 }
+
+/* Award summaries expand to their content: never hide winners in a scroller. */
+.app.in-game .table-stage .board-zone,
+.app.in-game .table-stage:has(.table-awards) .board-zone,
+.app.in-game .table-stage .runout-boards,
+.app.in-game .table-stage .runout-board .table-awards,
+.app.in-game .table-stage.two-runouts .runout-board .table-awards {
+  overflow: visible;
+  max-height: none;
+}
+.app.in-game .table-stage .runout-board .table-awards {
+  width: min(100%, 240px);
+  height: auto;
+  min-height: 0;
+  margin: 0;
+}
+.app.in-game .table-stage .table-award-winners { display: grid; gap: 2px; }
+.app.in-game .table-stage .table-award-winners > div + div { margin: 0; }
+.app.in-game .table-stage .table-winner-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 3px;
+  min-height: 0;
+  height: auto;
+  font-size: 11px;
+  line-height: 1.15;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+.app.in-game .table-stage .table-winner-name b { white-space: nowrap; }
+.app.in-game .table-stage .table-winning-hand { font-size: 10px; line-height: 1.15; text-wrap: balance; }
+.app.in-game .table-stage .table-pot-label { font-size: 9px; line-height: 1.1; margin-bottom: 2px; }
+.app.in-game .table-stage .shared-winning-hand { margin-top: 3px; }
+.app.in-game .table-stage:not(.two-runouts) .split-awards .table-award-winners {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.app.in-game .table-stage.two-runouts .runout-boards { width: min(100%, 300px); gap: 6px; }
+.app.in-game .table-stage.two-runouts .runout-board { grid-template-columns: minmax(0, 1fr) 108px; align-items: center; }
+.app.in-game .table-stage.two-runouts .runout-board .table-awards { width: 108px; }
+.app.in-game .table-stage.two-runouts .table-winner-name { font-size: 10px; }
+.app.in-game .table-stage.two-runouts .table-winning-hand { font-size: 9px; }
+.app.in-game .table-stage .table-pot-tabs { flex-wrap: wrap; gap: 2px 5px; overflow: visible; }
+.app.in-game .table-stage .table-pot-tabs button { font-size: 9px; min-height: 0; padding: 1px; }
+/* Remove inline baseline gaps and let centred summaries use reserved felt space. */
+.app.in-game .table-stage .table-award-winners > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.app.in-game .table-stage .board-zone,
+.app.in-game .table-stage:has(.table-awards) .board-zone { justify-content: center; }
+.app.in-game .table-stage .felt:has(.table-awards) { overflow: visible; }
