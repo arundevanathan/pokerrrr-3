@@ -5808,7 +5808,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Reserve the inward half of the rail seats before placing the pot/results. */
 .app.in-game .table-stage:has(.table-awards) { --felt-half-height: min(40%, 38cqw); }
 .app.in-game .table-stage .board-zone,
-.app.in-game .table-stage:has(.table-awards) .board-zone { inset: 50px 7% 30px; }
+.app.in-game .table-stage:has(.table-awards) .board-zone { inset: 42px 7% 38px; }
 .app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 180px); }
 .app.in-game .table-stage.two-runouts .pot-label { display: none; }
 .app.in-game .table-stage.two-runouts .pot-amount { font-size: 22px; line-height: 1.1; }

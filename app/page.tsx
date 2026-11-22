@@ -1,5 +1,5 @@
 'use client';
-import { CardFace, type CardSize, type CardLayout } from './card-face';
+import { CardFace, type CardSize } from './card-face';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Pause, Play, ChevronRight, CheckCircle2, Rabbit } from 'lucide-react';
@@ -48,7 +48,6 @@ function Card({
   value,
   small = false,
   size = 'extra-small',
-  layout = 'corners',
   covered = false,
   back = false,
   highlight = false,
@@ -57,7 +56,6 @@ function Card({
   value?: number;
   small?: boolean;
   size?: CardSize;
-  layout?: CardLayout;
   covered?: boolean;
   back?: boolean;
   highlight?: boolean;
@@ -70,7 +68,7 @@ function Card({
   const rank = '23456789TJQKA'[value % 13],
     suit = ['♣', '♦', '♥', '♠'][Math.floor(value / 13)];
   return <div className={`card face-card ${small ? 'small' : ''} ${'♦♥'.includes(suit) ? 'red' : ''} ${highlight ? 'winning-card' : ''} ${dim ? 'dimmed-card' : ''}`} aria-label={`${rank === 'T' ? '10' : rank} ${['clubs', 'diamonds', 'hearts', 'spades'][Math.floor(value / 13)]}${highlight ? ', winning card' : ''}`}>
-    <CardFace covered={covered} layout={layout} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
+    <CardFace covered={covered} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
   </div>;
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
@@ -764,7 +762,7 @@ export default function Home() {
                             {flip && <div className="board-flip-back" aria-hidden="true"><span>♠</span></div>}
                             {rabbitCard ? <><Card back /><button className="rabbit-hunt-trigger" disabled={controlsBusy} onClick={() => void send('rabbit_hunt')} aria-label={`Reveal Rabbit Hunt card, ${rabbitRemaining} seconds remaining`}>
                               <b><Rabbit size={13} aria-hidden="true" />{rabbitRemaining}s</b>
-                            </button></> : <Card layout="community" value={value} size={room.runCount === 2 ? 'extra-small' : 'small'} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
+                            </button></> : <Card value={value} size={room.runCount === 2 ? 'extra-small' : 'small'} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
                           </div>;
                         })}
                       </div>
@@ -1179,7 +1177,7 @@ export default function Home() {
                 <div className="history-run-boards">
                   {(h.boards?.length ? h.boards : [h.board]).map((board: number[], run: number) => <div className="board-cards" key={run}>
                     {h.runCount === 2 && <small>Run {run + 1}</small>}
-                    {board.map((c: number, i: number) => <Card key={i} value={c} layout="community" small />)}
+                    {board.map((c: number, i: number) => <Card key={i} value={c} small />)}
                   </div>)}
                 </div>
                 {h.result.map((w: any) => <p key={w.id}>{w.name} +{fmt(w.wonAmount ?? w.amount)} · {h.runCount === 2 && w.runHands?.length > 0 ? w.runHands.map((rh: any) => `Run ${rh.run}: ${rh.description} (+${fmt(rh.wonAmount)})`).join(' · ') : w.description || w.hand}{w.returnedAmount > 0 ? ` · ${fmt(w.returnedAmount)} returned` : ''}</p>)}
