@@ -257,3 +257,14 @@ test('occupied rail positions preserve seat order across empty slots and viewers
   }
   assert.deepEqual(tableSeatPosition({...room, phase:'lobby'}, 2, 0), seatPosition(2,0,8));
 });
+
+
+test('spectators use the same full-slot geometry for occupied and empty join seats', () => {
+  for (let count = 2; count <= 8; count++) {
+    const players = Array.from({length: count - 1}, (_, seat) => ({seat, id: `p${seat}`}));
+    const room = {phase:'flop', me:'spectator', settings:{seats:count}, players};
+    const positions = Array.from({length:count}, (_, seat) => tableSeatPosition(room,seat,0));
+    assert.equal(new Set(positions.map(p=>JSON.stringify(p))).size,count);
+    for (let seat=0; seat<count; seat++) assert.deepEqual(positions[seat],seatPosition(seat,0,count));
+  }
+});

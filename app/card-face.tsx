@@ -14,7 +14,7 @@ const profiles = {
 } as const;
 export function CardFace({rank, suit, size = 'normal', covered = false, revealed = false, community = false}: {rank: string; suit: string; size?: CardSize; covered?: boolean; revealed?: boolean; community?: boolean}) {
   // Seat reveals need a narrower index than the equally small runout cards.
-  const p = revealed ? { rank: 22, corner: 14, left: 10, top: 25, suitY: 28, bottomSuitY: 58 } : profiles[size];
+  const p = revealed ? { rank: 30, corner: 20, left: 14, top: 30, suitY: 33, bottomSuitY: 54 } : profiles[size];
   // Smaller runout faces reserve more space for ranks than for the centre suit.
   const board = size === 'extra-small'
     ? { rank: 29, left: 15, top: 28, suit: 28 }

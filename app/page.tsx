@@ -727,7 +727,7 @@ export default function Home() {
             </small>}
           </div>
 
-          <div className={`table-stage ${room.runCount === 2 ? 'two-runouts' : ''} ${room.runVote ? 'has-run-vote' : ''}`} style={{ '--seat-columns': Math.ceil((room.phase === 'lobby' ? room.settings.seats : Math.max(2, visiblePlayers.length)) / 2) } as React.CSSProperties}>
+          <div className={`table-stage ${room.runCount === 2 ? 'two-runouts' : ''} ${room.runVote ? 'has-run-vote' : ''}`} style={{ '--seat-columns': Math.ceil((room.phase === 'lobby' || !seated ? room.settings.seats : Math.max(2, visiblePlayers.length)) / 2) } as React.CSSProperties}>
             <TurnBeam target={live && !effects.presentationBusy ? room.turn : null} />
             <div className="felt">
               <div className="felt-inner" />
@@ -790,7 +790,7 @@ export default function Home() {
                 win = effects.resultReady ? winners.find((w: any) => w.id === p?.id) : null,
                 cardCount = room.game === 'NLH' ? 2 : room.game === 'PLO4' ? 4 : 5,
                 visibleCount = effects.visibleHoleCards(s, cardCount);
-              return <div key={s} data-seat-index={s} data-relative-seat={(s - (me?.seat || 0) + room.settings.seats) % room.settings.seats} className={`seat ${p ? 'occupied' : 'open'} ${live && !effects.presentationBusy && p?.id === room.turn ? 'acting' : ''} ${p?.folded && handActive ? 'folded' : ''} ${p?.id === room.me ? 'your-seat' : ''} ${p?.cards?.length ? 'cards-revealed' : 'cards-concealed'} ${cardCount > 2 ? 'omaha-seat' : ''} ${win ? 'winner-seat' : ''}`} data-card-count={cardCount} style={{
+              return <div key={s} data-seat-index={s} data-relative-seat={(s - (me?.seat || 0) + room.settings.seats) % room.settings.seats} className={`seat ${p ? 'occupied' : 'open'} ${!p && seated && room.phase !== 'lobby' ? 'unavailable-seat' : ''} ${live && !effects.presentationBusy && p?.id === room.turn ? 'acting' : ''} ${p?.folded && handActive ? 'folded' : ''} ${p?.id === room.me ? 'your-seat' : ''} ${p?.cards?.length ? 'cards-revealed' : 'cards-concealed'} ${cardCount > 2 ? 'omaha-seat' : ''} ${win ? 'winner-seat' : ''}`} data-card-count={cardCount} style={{
                 '--reveal-count': cardCount,
                 left: `clamp(var(--seat-edge-x), ${x}%, calc(100% - var(--seat-edge-x)))`,
                 top: seatTop(y)

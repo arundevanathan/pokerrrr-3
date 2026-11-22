@@ -5854,7 +5854,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Omaha reveals expose a narrow strip; indices fit even on 320px phones. */
 .app.in-game .table-stage .seat.occupied.omaha-seat:not(.your-seat).cards-revealed .hole-cards {
   --reveal-card: 29px;
-  width: min(75px, 21vw);
+  width: min(90px, 24vw);
 }
 
 /* NLH reveals show two complete cards with a fixed gap, including while dealing. */
@@ -5868,3 +5868,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .app.in-game .table-stage .seat.occupied[data-card-count="2"]:not(.your-seat).cards-revealed .hole-cards > span {
   flex: 0 0 29px;
 }
+
+/* Disabled empty slots are not join targets once the viewer is already seated. */
+.app.in-game .table-stage .seat.unavailable-seat { visibility: hidden; pointer-events: none; }
