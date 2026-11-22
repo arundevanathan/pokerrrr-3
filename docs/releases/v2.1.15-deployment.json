@@ -1,0 +1,11 @@
+{
+  "tag": "v2.1.15",
+  "commit": "7b29d8c45811800d2ec1016cf0d969188d435714",
+  "workerVersion": "985636a7-f8a4-45e4-9b76-aa94023aeec7",
+  "deploymentId": "f6c2b500-3206-437f-a0b6-c5676535920e",
+  "rollbackVersion": "cf05ff0a-c8d8-4d5c-b9bc-c349040b8136",
+  "verifiedAt": "2026-11-22T09:37:29.321Z",
+  "productionUrl": "https://dunzo-club.arun-devanathan.workers.dev/",
+  "trafficPercent": 100,
+  "validation": "157 tests and TypeScript passed on approved staging source. Production build, isolation guard and production isolation test passed. Full production multiplayer smoke passed on retry: 8 hands, 3 variants, private card views, reconnect/restart, social, history and chip reconciliation. Initial smoke timed out on server push during overlapping local build; clean sequential rerun passed. Mobile NLH/PLO5 and ten runout card faces reviewed. Production health matched exact release commit; existing namespace retained."
+}
