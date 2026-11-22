@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 // Hole cards use corner indices; community cards use corner ranks and a centre suit.
 const paths: Record<string, string> = {
   '♦': 'M50 2 85 50 50 98 15 50Z',
@@ -13,6 +15,18 @@ const profiles = {
   'extra-small': { rank: 29, corner: 20, left: 16, top: 29, suitY: 35, bottomSuitY: 50 }
 } as const;
 export function CardFace({rank, suit, size = 'normal', covered = false, revealed = false, community = false}: {rank: string; suit: string; size?: CardSize; covered?: boolean; revealed?: boolean; community?: boolean}) {
+  const gradientId = `suit-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const red = '♦♥'.includes(suit);
+  // Local SVG gradients provide the same finish without platform emoji or filters.
+  // Compact corner symbols use a gentler highlight to retain their dark silhouette.
+  const tones = red
+    ? (community ? ['#ef354b', '#d90020', '#a80019'] : ['#e8233d', '#d90020', '#b9001b'])
+    : (community ? ['#454a52', '#171a20', '#030405'] : ['#30353c', '#15181d', '#060709']);
+  const shading = <defs><linearGradient id={gradientId} x1="0" y1="0" x2=".25" y2="1">
+    <stop offset="0" stopColor={tones[0]} />
+    <stop offset=".46" stopColor={tones[1]} />
+    <stop offset="1" stopColor={tones[2]} />
+  </linearGradient></defs>;
   // Seat reveals need a narrower index than the equally small runout cards.
   const p = revealed ? { rank: 30, corner: 20, left: 14, top: 30, suitY: 33, bottomSuitY: 54 } : profiles[size];
   // Smaller runout faces reserve more space for ranks than for the centre suit.
@@ -21,8 +35,9 @@ export function CardFace({rank, suit, size = 'normal', covered = false, revealed
     : { rank: 28, left: 14, top: 27, suit: 34 };
   const right = 70 - p.left;
   const rankWidth = rank === '10' ? p.rank * (revealed ? .83 : .98) : undefined;
-  const pip = (x: number, y: number, width: number) => <path d={paths[suit]} transform={`translate(${x} ${y}) scale(${width / 100})`} />;
+  const pip = (x: number, y: number, width: number) => <path d={paths[suit]} fill={`url(#${gradientId})`} transform={`translate(${x} ${y}) scale(${width / 100})`} />;
   if (community) return <svg className="card-face" data-card-size={size} data-card-layout="community" viewBox="0 0 70 100" aria-hidden="true" focusable="false">
+    {shading}
     <g fill={'♦♥'.includes(suit) ? '#d90020' : '#080808'}>
       <text x={board.left} y={board.top} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={board.rank} fontWeight="700" letterSpacing="-.8" textLength={rank === '10' ? board.rank * .95 : undefined} lengthAdjust="spacingAndGlyphs">{rank}</text>
       {pip((70 - board.suit) / 2, (100 - board.suit) / 2, board.suit)}
@@ -30,6 +45,7 @@ export function CardFace({rank, suit, size = 'normal', covered = false, revealed
     </g>
   </svg>;
   return <svg className="card-face" data-card-size={size} data-card-layout="corners" viewBox="0 0 70 100" aria-hidden="true" focusable="false">
+    {shading}
     <g fill={'♦♥'.includes(suit) ? '#d90020' : '#080808'}>
       <text x={p.left} y={p.top} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8" textLength={rankWidth} lengthAdjust="spacingAndGlyphs">{rank}</text>
       {pip(p.left - p.corner / 2, p.suitY, p.corner)}
