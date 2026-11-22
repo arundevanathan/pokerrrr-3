@@ -50,6 +50,7 @@ function Card({
   size = 'extra-small',
   covered = false,
   revealed = false,
+  community = false,
   back = false,
   highlight = false,
   dim = false
@@ -59,6 +60,7 @@ function Card({
   size?: CardSize;
   covered?: boolean;
   revealed?: boolean;
+  community?: boolean;
   back?: boolean;
   highlight?: boolean;
   dim?: boolean;
@@ -70,7 +72,7 @@ function Card({
   const rank = '23456789TJQKA'[value % 13],
     suit = ['♣', '♦', '♥', '♠'][Math.floor(value / 13)];
   return <div className={`card face-card ${small ? 'small' : ''} ${'♦♥'.includes(suit) ? 'red' : ''} ${highlight ? 'winning-card' : ''} ${dim ? 'dimmed-card' : ''}`} aria-label={`${rank === 'T' ? '10' : rank} ${['clubs', 'diamonds', 'hearts', 'spades'][Math.floor(value / 13)]}${highlight ? ', winning card' : ''}`}>
-    <CardFace revealed={revealed} covered={covered} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
+    <CardFace community={community} revealed={revealed} covered={covered} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
   </div>;
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
@@ -764,7 +766,7 @@ export default function Home() {
                             {flip && <div className="board-flip-back" aria-hidden="true"><span>♠</span></div>}
                             {rabbitCard ? <><Card back /><button className="rabbit-hunt-trigger" disabled={controlsBusy} onClick={() => void send('rabbit_hunt')} aria-label={`Reveal Rabbit Hunt card, ${rabbitRemaining} seconds remaining`}>
                               <b><Rabbit size={13} aria-hidden="true" />{rabbitRemaining}s</b>
-                            </button></> : <Card value={value} size={room.runCount === 2 ? 'extra-small' : 'small'} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
+                            </button></> : <Card community value={value} size={room.runCount === 2 ? 'extra-small' : 'small'} highlight={value !== undefined && winningBoard.includes(value)} dim={effects.resultReady && winningBoard.length > 0 && value !== undefined && !winningBoard.includes(value)} />}
                           </div>;
                         })}
                       </div>
@@ -1179,7 +1181,7 @@ export default function Home() {
                 <div className="history-run-boards">
                   {(h.boards?.length ? h.boards : [h.board]).map((board: number[], run: number) => <div className="board-cards" key={run}>
                     {h.runCount === 2 && <small>Run {run + 1}</small>}
-                    {board.map((c: number, i: number) => <Card key={i} value={c} small />)}
+                    {board.map((c: number, i: number) => <Card community key={i} value={c} small />)}
                   </div>)}
                 </div>
                 {h.result.map((w: any) => <p key={w.id}>{w.name} +{fmt(w.wonAmount ?? w.amount)} · {h.runCount === 2 && w.runHands?.length > 0 ? w.runHands.map((rh: any) => `Run ${rh.run}: ${rh.description} (+${fmt(rh.wonAmount)})`).join(' · ') : w.description || w.hand}{w.returnedAmount > 0 ? ` · ${fmt(w.returnedAmount)} returned` : ''}</p>)}

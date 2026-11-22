@@ -1,4 +1,4 @@
-// Shared deck: two upright rank/suit corners, with no central suit.
+// Hole cards use corner indices; community cards use corner ranks and a centre suit.
 const paths: Record<string, string> = {
   '♦': 'M50 2 85 50 50 98 15 50Z',
   '♥': 'M50 94C40 80 5 57 5 32C5 0 38 0 50 23C62 0 95 0 95 32C95 57 60 80 50 94Z',
@@ -12,12 +12,23 @@ const profiles = {
   small: { rank: 32, corner: 21, left: 20, top: 30, suitY: 33, bottomSuitY: 49 },
   'extra-small': { rank: 35, corner: 22, left: 21, top: 32, suitY: 33, bottomSuitY: 49 }
 } as const;
-export function CardFace({rank, suit, size = 'normal', covered = false, revealed = false}: {rank: string; suit: string; size?: CardSize; covered?: boolean; revealed?: boolean}) {
+export function CardFace({rank, suit, size = 'normal', covered = false, revealed = false, community = false}: {rank: string; suit: string; size?: CardSize; covered?: boolean; revealed?: boolean; community?: boolean}) {
   // Seat reveals need a narrower index than the equally small runout cards.
   const p = revealed ? { rank: 22, corner: 14, left: 10, top: 25, suitY: 28, bottomSuitY: 58 } : profiles[size];
+  // Smaller runout faces reserve more space for ranks than for the centre suit.
+  const board = size === 'extra-small'
+    ? { rank: 29, left: 15, top: 28, suit: 28 }
+    : { rank: 28, left: 14, top: 27, suit: 34 };
   const right = 70 - p.left;
   const rankWidth = rank === '10' && (revealed || size === 'normal') ? p.rank * (revealed ? .83 : .98) : undefined;
   const pip = (x: number, y: number, width: number) => <path d={paths[suit]} transform={`translate(${x} ${y}) scale(${width / 100})`} />;
+  if (community) return <svg className="card-face" data-card-size={size} data-card-layout="community" viewBox="0 0 70 100" aria-hidden="true" focusable="false">
+    <g fill={'♦♥'.includes(suit) ? '#d90020' : '#080808'}>
+      <text x={board.left} y={board.top} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={board.rank} fontWeight="700" letterSpacing="-.8" textLength={rank === '10' ? board.rank * .95 : undefined} lengthAdjust="spacingAndGlyphs">{rank}</text>
+      {pip((70 - board.suit) / 2, (100 - board.suit) / 2, board.suit)}
+      <text x={70 - board.left} y="94" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={board.rank} fontWeight="700" letterSpacing="-.8" textLength={rank === '10' ? board.rank * .95 : undefined} lengthAdjust="spacingAndGlyphs">{rank}</text>
+    </g>
+  </svg>;
   return <svg className="card-face" data-card-size={size} data-card-layout="corners" viewBox="0 0 70 100" aria-hidden="true" focusable="false">
     <g fill={'♦♥'.includes(suit) ? '#d90020' : '#080808'}>
       <text x={p.left} y={p.top} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8" textLength={rankWidth} lengthAdjust="spacingAndGlyphs">{rank}</text>
