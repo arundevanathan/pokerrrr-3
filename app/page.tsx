@@ -799,7 +799,7 @@ export default function Home() {
                   }}>
                     {p.cards?.length ? <div className="hole-cards">
                       {sortedHoleCards(p.cards).slice(0, visibleCount).map((c: number, i: number) => <span className={effects.dealing ? 'arriving-hole-card' : ''} style={{ '--fan-angle': `${(i - (cardCount - 1) / 2) * 9}deg`, '--fan-lift': `${Math.abs(i - (cardCount - 1) / 2) * 3}px` } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
-                        <Card value={c} small revealed covered={i < Math.min(p.cards.length, visibleCount) - 1} highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
+                        <Card value={c} small revealed={cardCount > 2} covered={cardCount > 2 && i < Math.min(p.cards.length, visibleCount) - 1} highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
                       </span>)}
                     </div> : <div className="hole-cards">
                       {Array.from({

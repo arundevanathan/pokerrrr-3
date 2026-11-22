@@ -5851,8 +5851,20 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .app.in-game .table-stage:not(.two-runouts) .board-cards { width: min(100%, 175px); }
 }
 
-/* Reveal hands have an explicit exposed strip; indices fit even on 320px phones. */
-.app.in-game .table-stage .seat.occupied:not(.your-seat).cards-revealed .hole-cards {
+/* Omaha reveals expose a narrow strip; indices fit even on 320px phones. */
+.app.in-game .table-stage .seat.occupied.omaha-seat:not(.your-seat).cards-revealed .hole-cards {
   --reveal-card: 29px;
   width: min(75px, 21vw);
+}
+
+/* NLH reveals show two complete cards with a fixed gap, including while dealing. */
+.app.in-game .table-stage .seat.occupied[data-card-count="2"]:not(.your-seat).cards-revealed .hole-cards {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+}
+.app.in-game .table-stage .seat.occupied[data-card-count="2"]:not(.your-seat).cards-revealed .hole-cards > span {
+  flex: 0 0 29px;
 }
