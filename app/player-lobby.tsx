@@ -26,11 +26,12 @@ export function PlayerLobby({
   error: string;
   onLogin: (id: string, pin: string) => Promise<void>;
   onOpen: (settings: any) => Promise<void>;
-  onPractice?: () => void;
+  onPractice?: (game: 'NLH' | 'PLO4' | 'PLO5') => void;
   onRetry: () => void;
   hasPending: boolean;
 }) {
   const [selected, setSelected] = useState(''),
+    [practiceGame, setPracticeGame] = useState<'NLH' | 'PLO4' | 'PLO5'>('NLH'),
     [pin, setPin] = useState(''),
     [bb, setBb] = useState(50),
     [rotation, setRotation] = useState(3),
@@ -122,7 +123,12 @@ export function PlayerLobby({
     </div>}
 
     {onPractice && <div className="practice-row">
-      <button onClick={onPractice}>Practice locally</button>
+      <label>Practice game<select value={practiceGame} onChange={e => setPracticeGame(e.target.value as 'NLH' | 'PLO4' | 'PLO5')}>
+        <option value="NLH">NLH</option>
+        <option value="PLO4">PLO4</option>
+        <option value="PLO5">PLO5</option>
+      </select></label>
+      <button type="button" onClick={() => onPractice(practiceGame)}>Practice locally</button>
     </div>}
 
   </section>;

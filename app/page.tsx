@@ -448,7 +448,7 @@ export default function Home() {
     }
   }
   // Practice is isolated in demo.current and never sends multiplayer commands.
-  function practice() {
+  function practice(game: 'NLH' | 'PLO4' | 'PLO5' = 'NLH') {
     if (!showTestTools) return;
     setError('');
     const r = newRoom('DEMO', token.current, {
@@ -457,7 +457,8 @@ export default function Home() {
       bb,
       buyin,
       seats: 8,
-      rotation
+      rotation,
+      games: [game]
     });
     for (const n of ['Alex', 'Sam', 'Jamie', 'Rohan', 'Priya']) {
       const id = playerId();

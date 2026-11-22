@@ -5634,3 +5634,36 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   --card-width: min(calc((100cqw - 5px) / 2), calc((var(--bet-sizing-height) - 2px) * 5 / 7));
 }
 .app.in-game .personal-card-wrap { transform: none; }
+
+/* Larger boards share dimensions with empty/rabbit slots to avoid layout jumps. */
+.app.in-game .table-stage:not(.two-runouts) .board-cards > .board-card-wrap > .card {
+  width: clamp(39px, 10.5vw, 56px);
+  height: auto;
+  aspect-ratio: 7 / 10;
+  flex-shrink: 0;
+}
+.app.in-game .table-stage.two-runouts .board-cards > .board-card-wrap > .card {
+  width: clamp(33px, 9vw, 46px);
+  height: auto;
+  aspect-ratio: 7 / 10;
+  flex-shrink: 0;
+}
+/* Straight overlap keeps the upper-left rank visible in four/five-card reveals. */
+.app.in-game .seat.occupied:not(.your-seat).cards-revealed .hole-cards .card.small {
+  width: 29px;
+  height: auto;
+  aspect-ratio: 7 / 10;
+}
+.app.in-game .seat.occupied:not(.your-seat).cards-revealed .seat-top { height: 42px; }
+.app.in-game .seat.occupied:not(.your-seat).cards-revealed.omaha-seat { --hole-card-width: 29px; }
+@media (max-height: 560px) {
+  .app.in-game .table-stage.two-runouts .board-cards > .board-card-wrap > .card { width: 29px; }
+  .app.in-game .table-stage.two-runouts .runout-boards { gap: 3px; }
+}
+.app.in-game .seat.occupied:not(.your-seat).cards-revealed.omaha-seat { width: 94px; }
+
+/* Practice type selection is independent of the live game's setup. */
+.simple-lobby .practice-row { flex-wrap: wrap; gap: 12px; }
+.simple-lobby .practice-row > label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
+.simple-lobby .practice-row select { width: 96px; height: 44px; margin: 0; font-size: 14px; }
+.simple-lobby .practice-row > button { min-height: 44px; font-size: 14px; }
