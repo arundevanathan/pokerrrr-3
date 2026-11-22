@@ -72,7 +72,7 @@ function Card({
   const rank = '23456789TJQKA'[value % 13],
     suit = ['♣', '♦', '♥', '♠'][Math.floor(value / 13)];
   return <div className={`card face-card ${small ? 'small' : ''} ${'♦♥'.includes(suit) ? 'red' : ''} ${highlight ? 'winning-card' : ''} ${dim ? 'dimmed-card' : ''}`} aria-label={`${rank === 'T' ? '10' : rank} ${['clubs', 'diamonds', 'hearts', 'spades'][Math.floor(value / 13)]}${highlight ? ', winning card' : ''}`}>
-    <CardFace community={community} revealed={revealed} covered={covered} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
+    <CardFace community={community} revealed={revealed} covered={covered && !highlight} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
   </div>;
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';

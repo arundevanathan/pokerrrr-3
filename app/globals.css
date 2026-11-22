@@ -5960,3 +5960,17 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .app.in-game .table-stage .board-zone,
 .app.in-game .table-stage:has(.table-awards) .board-zone { justify-content: center; }
 .app.in-game .table-stage .felt:has(.table-awards) { overflow: visible; }
+
+/* Hole cards remain opaque when unused: only the face artwork fades. This
+   preserves normal occlusion in overlapping hands and raised winning reveals. */
+.app.in-game :is(.personal-hole-cards, .hole-cards) .card.face-card.dimmed-card {
+  opacity: 1;
+  filter: none;
+  background: #e5e1d7;
+  transition: background-color .3s;
+}
+.app.in-game :is(.personal-hole-cards, .hole-cards) .card.face-card.dimmed-card > svg.card-face {
+  opacity: .42;
+  filter: saturate(.45);
+  transition: opacity .3s;
+}
