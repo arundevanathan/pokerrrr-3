@@ -5900,3 +5900,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   min-height: 42px;
   max-height: 42px;
 }
+
+/* Use the same hand viewport as betting, without introducing a second card size. */
+.app.in-game .action-zone > .showdown-hand {
+  width: 100%;
+  flex: 0 0 auto;
+}

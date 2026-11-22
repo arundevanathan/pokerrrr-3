@@ -880,7 +880,10 @@ export default function Home() {
                 {enableReactions && <ChatButton social={social} readOnly={room.phase === 'closed'} />}
               </div>
             </div>
-            {seated && (!live || voting) && personalHand}
+            {seated && (!live || voting) && <div className="hand-and-raise showdown-hand">
+              {personalHand}
+              <div aria-hidden="true" />
+            </div>}
             {me?.pendingSeatAction === 'leave' && <p className="game-status" role="status">Standing up after this hand and payouts. <button className="text-button" disabled={controlsBusy || room.terminationPending} onClick={() => send('cancel_stand_up')}>Cancel</button></p>}
             {room.terminationPending && <p className="game-status" role="status">Game will terminate after this hand.</p>}
             {!seated && room.phase !== 'closed' ? <>

@@ -10,7 +10,7 @@ export type CardSize = 'normal' | 'small' | 'extra-small';
 const profiles = {
   normal: { rank: 21, corner: 16, left: 14, top: 24, suitY: 28, bottomSuitY: 57 },
   small: { rank: 32, corner: 21, left: 20, top: 30, suitY: 33, bottomSuitY: 49 },
-  'extra-small': { rank: 35, corner: 22, left: 21, top: 32, suitY: 33, bottomSuitY: 49 }
+  'extra-small': { rank: 29, corner: 20, left: 16, top: 29, suitY: 35, bottomSuitY: 50 }
 } as const;
 export function CardFace({rank, suit, size = 'normal', covered = false, revealed = false, community = false}: {rank: string; suit: string; size?: CardSize; covered?: boolean; revealed?: boolean; community?: boolean}) {
   // Seat reveals need a narrower index than the equally small runout cards.
@@ -20,7 +20,7 @@ export function CardFace({rank, suit, size = 'normal', covered = false, revealed
     ? { rank: 29, left: 15, top: 28, suit: 28 }
     : { rank: 28, left: 14, top: 27, suit: 34 };
   const right = 70 - p.left;
-  const rankWidth = rank === '10' && (revealed || size === 'normal') ? p.rank * (revealed ? .83 : .98) : undefined;
+  const rankWidth = rank === '10' ? p.rank * (revealed ? .83 : .98) : undefined;
   const pip = (x: number, y: number, width: number) => <path d={paths[suit]} transform={`translate(${x} ${y}) scale(${width / 100})`} />;
   if (community) return <svg className="card-face" data-card-size={size} data-card-layout="community" viewBox="0 0 70 100" aria-hidden="true" focusable="false">
     <g fill={'♦♥'.includes(suit) ? '#d90020' : '#080808'}>
