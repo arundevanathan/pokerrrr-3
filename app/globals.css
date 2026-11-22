@@ -5871,3 +5871,32 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 /* Disabled empty slots are not join targets once the viewer is already seated. */
 .app.in-game .table-stage .seat.unavailable-seat { visibility: hidden; pointer-events: none; }
+
+/* Revealed faces must not depend on intrinsic flex/grid sizing. Their SVG
+   artwork is absolutely positioned and contributes no intrinsic dimensions. */
+.app.in-game .table-stage .seat.occupied:not(.your-seat).cards-revealed .seat-top {
+  container-type: normal;
+  height: 42px;
+  min-height: 42px;
+  overflow: visible;
+}
+.app.in-game .table-stage .seat.occupied:not(.your-seat).cards-revealed .hole-cards {
+  --reveal-card: 29px;
+  height: 42px;
+  min-height: 42px;
+}
+.app.in-game .table-stage .seat.occupied:not(.your-seat).cards-revealed .hole-cards > span {
+  display: block;
+  height: 42px;
+  min-height: 42px;
+  overflow: visible;
+}
+.app.in-game .table-stage .seat.occupied:not(.your-seat).cards-revealed .hole-cards .card.small {
+  flex: 0 0 29px;
+  width: 29px;
+  min-width: 29px;
+  max-width: 29px;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+}
