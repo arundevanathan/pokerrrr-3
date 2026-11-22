@@ -5850,3 +5850,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 @media (max-width: 360px) {
   .app.in-game .table-stage:not(.two-runouts) .board-cards { width: min(100%, 175px); }
 }
+
+/* Reveal hands have an explicit exposed strip; indices fit even on 320px phones. */
+.app.in-game .table-stage .seat.occupied:not(.your-seat).cards-revealed .hole-cards {
+  --reveal-card: 29px;
+  width: min(75px, 21vw);
+}

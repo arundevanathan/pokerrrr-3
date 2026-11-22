@@ -8,19 +8,22 @@ const paths: Record<string, string> = {
 export type CardSize = 'normal' | 'small' | 'extra-small';
 // Coordinates use a 70 × 100 face. Smaller cards progressively favour indices.
 const profiles = {
-  normal: { rank: 24, corner: 18, left: 18, top: 27, suitY: 31, bottomSuitY: 50 },
+  normal: { rank: 21, corner: 16, left: 14, top: 24, suitY: 28, bottomSuitY: 57 },
   small: { rank: 32, corner: 21, left: 20, top: 30, suitY: 33, bottomSuitY: 49 },
   'extra-small': { rank: 35, corner: 22, left: 21, top: 32, suitY: 33, bottomSuitY: 49 }
 } as const;
-export function CardFace({rank, suit, size = 'normal', covered = false}: {rank: string; suit: string; size?: CardSize; covered?: boolean}) {
-  const p = profiles[size], right = 70 - p.left;
+export function CardFace({rank, suit, size = 'normal', covered = false, revealed = false}: {rank: string; suit: string; size?: CardSize; covered?: boolean; revealed?: boolean}) {
+  // Seat reveals need a narrower index than the equally small runout cards.
+  const p = revealed ? { rank: 22, corner: 14, left: 10, top: 25, suitY: 28, bottomSuitY: 58 } : profiles[size];
+  const right = 70 - p.left;
+  const rankWidth = rank === '10' && (revealed || size === 'normal') ? p.rank * (revealed ? .83 : .98) : undefined;
   const pip = (x: number, y: number, width: number) => <path d={paths[suit]} transform={`translate(${x} ${y}) scale(${width / 100})`} />;
   return <svg className="card-face" data-card-size={size} data-card-layout="corners" viewBox="0 0 70 100" aria-hidden="true" focusable="false">
     <g fill={'♦♥'.includes(suit) ? '#d90020' : '#080808'}>
-      <text x={p.left} y={p.top} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8">{rank}</text>
+      <text x={p.left} y={p.top} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8" textLength={rankWidth} lengthAdjust="spacingAndGlyphs">{rank}</text>
       {pip(p.left - p.corner / 2, p.suitY, p.corner)}
       {!covered && pip(right - p.corner / 2, p.bottomSuitY, p.corner)}
-      {!covered && <text x={right} y="94" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8">{rank}</text>}
+      {!covered && <text x={right} y="94" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8" textLength={rankWidth} lengthAdjust="spacingAndGlyphs">{rank}</text>}
     </g>
   </svg>;
 }

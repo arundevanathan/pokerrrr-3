@@ -49,6 +49,7 @@ function Card({
   small = false,
   size = 'extra-small',
   covered = false,
+  revealed = false,
   back = false,
   highlight = false,
   dim = false
@@ -57,6 +58,7 @@ function Card({
   small?: boolean;
   size?: CardSize;
   covered?: boolean;
+  revealed?: boolean;
   back?: boolean;
   highlight?: boolean;
   dim?: boolean;
@@ -68,7 +70,7 @@ function Card({
   const rank = '23456789TJQKA'[value % 13],
     suit = ['♣', '♦', '♥', '♠'][Math.floor(value / 13)];
   return <div className={`card face-card ${small ? 'small' : ''} ${'♦♥'.includes(suit) ? 'red' : ''} ${highlight ? 'winning-card' : ''} ${dim ? 'dimmed-card' : ''}`} aria-label={`${rank === 'T' ? '10' : rank} ${['clubs', 'diamonds', 'hearts', 'spades'][Math.floor(value / 13)]}${highlight ? ', winning card' : ''}`}>
-    <CardFace covered={covered} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
+    <CardFace revealed={revealed} covered={covered} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
   </div>;
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
@@ -797,7 +799,7 @@ export default function Home() {
                   }}>
                     {p.cards?.length ? <div className="hole-cards">
                       {sortedHoleCards(p.cards).slice(0, visibleCount).map((c: number, i: number) => <span className={effects.dealing ? 'arriving-hole-card' : ''} style={{ '--fan-angle': `${(i - (cardCount - 1) / 2) * 9}deg`, '--fan-lift': `${Math.abs(i - (cardCount - 1) / 2) * 3}px` } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
-                        <Card value={c} small covered={i < Math.min(p.cards.length, visibleCount) - 1} highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
+                        <Card value={c} small revealed covered={i < Math.min(p.cards.length, visibleCount) - 1} highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
                       </span>)}
                     </div> : <div className="hole-cards">
                       {Array.from({
