@@ -5667,3 +5667,87 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .simple-lobby .practice-row > label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
 .simple-lobby .practice-row select { width: 96px; height: 44px; margin: 0; font-size: 14px; }
 .simple-lobby .practice-row > button { min-height: 44px; font-size: 14px; }
+
+/* Seats occupy upper/lower bands; the board is a sibling of the clipped felt. */
+.app.in-game .table-stage { container-type: inline-size; --seat-edge-x: 12px; --seat-edge-y: 36px; }
+.app.in-game .table-stage .seat,
+.app.in-game .table-stage .seat.occupied:not(.your-seat),
+.app.in-game .table-stage .seat.cards-revealed.omaha-seat {
+  width: min(94px, calc((100cqw - 16px) / var(--seat-columns) - 8px));
+}
+.app.in-game .table-stage .your-seat { --seat-edge-y: 36px; }
+.app.in-game .seat.cards-revealed:not(.your-seat) .seat-top { container-type: inline-size; height: auto; min-height: 0; }
+.app.in-game .seat.cards-revealed:not(.your-seat) .hole-cards {
+  --reveal-card: min(29px, calc(100cqw / (1 + (var(--reveal-count) - 1) * .58)));
+  display: grid;
+  grid-template-columns: repeat(calc(var(--reveal-count) - 1), minmax(0, 1fr)) var(--reveal-card);
+  width: 100%;
+  gap: 0;
+  padding: 0;
+  position: static;
+  transform: none;
+}
+.app.in-game .seat.cards-revealed:not(.your-seat) .hole-cards > span { min-width: 0; margin: 0; }
+.app.in-game .seat.cards-revealed:not(.your-seat) .hole-cards .card.small {
+  width: var(--reveal-card);
+  height: auto;
+  aspect-ratio: 7 / 10;
+  margin: 0;
+  transform: none;
+}
+.app.in-game .table-stage .board-zone,
+.app.in-game .table-stage:has(.table-awards) .board-zone {
+  inset: calc(12% + 44px) 8px;
+  width: auto;
+  transform: none;
+  padding: 3px 4px;
+  justify-content: safe center;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.app.in-game .table-stage .runout-boards,
+.app.in-game .table-stage .runout-board {
+  width: min(100%, 340px);
+  min-width: 0;
+  flex: 0 0 auto;
+  max-height: none;
+  overflow: visible;
+  gap: 5px;
+}
+.app.in-game .table-stage .board-cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  width: min(100%, 290px);
+  padding: 3px;
+}
+.app.in-game .table-stage .board-card-wrap { min-width: 0; }
+.app.in-game .table-stage .board-cards > .board-card-wrap > .card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 7 / 10;
+}
+.app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 230px); }
+.app.in-game .table-stage .pot-amount { margin: 2px 0 5px; font-size: clamp(22px, 4vw, 32px); }
+.app.in-game .table-stage .pot-label { margin: 0; }
+.app.in-game .table-stage .runout-board .table-awards { flex-shrink: 0; min-height: 0; margin: 0; }
+.app.in-game .table-stage .runout-board .table-winning-hand { font-size: 11px; line-height: 1.2; }
+.app.in-game .table-stage .runout-board .table-winner-name { font-size: 12px; line-height: 1.2; }
+.app.in-game .table-stage .run-board-label { font-size: 9px; }
+@media (max-height: 600px) {
+  .app.in-game .table-stage { --seat-edge-y: 25px; }
+  .app.in-game .table-stage .seat-info { min-height: 28px; padding: 2px; }
+  .app.in-game .table-stage .your-seat { --seat-edge-y: 25px; }
+  .app.in-game .table-stage .board-zone { inset-block: calc(12% + 32px); }
+  .app.in-game .table-stage .board-cards { width: min(100%, 210px); }
+  .app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 175px); }
+}
+/* Match the older single/two-run selectors so grid cells own every card width. */
+.app.in-game .table-stage:is(.two-runouts, :not(.two-runouts)) .board-cards > .board-card-wrap > .card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 7 / 10;
+}
+.app.in-game .seat.cards-revealed:not(.your-seat) .hole-cards {
+  width: min(100%, calc(29px * (1 + (var(--reveal-count) - 1) * .58)));
+}

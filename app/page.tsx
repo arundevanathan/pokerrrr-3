@@ -2,7 +2,7 @@
 import { CardFace, type CardSize, type CardLayout } from './card-face';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Trophy, Pause, Play, ChevronRight, CheckCircle2, Rabbit } from 'lucide-react';
+import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, Plus, X, Volume2, VolumeX, Pause, Play, ChevronRight, CheckCircle2, Rabbit } from 'lucide-react';
 import { useAppViewport } from '../lib/client/use-app-viewport';
 import { PokerAudio } from '../lib/poker-audio';
 import { useTableEffects } from '../lib/use-table-effects';
@@ -49,6 +49,7 @@ function Card({
   small = false,
   size = 'extra-small',
   layout = 'corners',
+  covered = false,
   back = false,
   highlight = false,
   dim = false
@@ -57,6 +58,7 @@ function Card({
   small?: boolean;
   size?: CardSize;
   layout?: CardLayout;
+  covered?: boolean;
   back?: boolean;
   highlight?: boolean;
   dim?: boolean;
@@ -68,7 +70,7 @@ function Card({
   const rank = '23456789TJQKA'[value % 13],
     suit = ['♣', '♦', '♥', '♠'][Math.floor(value / 13)];
   return <div className={`card face-card ${small ? 'small' : ''} ${'♦♥'.includes(suit) ? 'red' : ''} ${highlight ? 'winning-card' : ''} ${dim ? 'dimmed-card' : ''}`} aria-label={`${rank === 'T' ? '10' : rank} ${['clubs', 'diamonds', 'hearts', 'spades'][Math.floor(value / 13)]}${highlight ? ', winning card' : ''}`}>
-    <CardFace layout={layout} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
+    <CardFace covered={covered} layout={layout} size={size} rank={rank === 'T' ? '10' : rank} suit={suit} />
   </div>;
 }
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === 'staging';
@@ -723,10 +725,11 @@ export default function Home() {
             </small>}
           </div>
 
-          <div className={`table-stage ${room.runCount === 2 ? 'two-runouts' : ''} ${room.runVote ? 'has-run-vote' : ''}`}>
+          <div className={`table-stage ${room.runCount === 2 ? 'two-runouts' : ''} ${room.runVote ? 'has-run-vote' : ''}`} style={{ '--seat-columns': Math.ceil(room.settings.seats / 2) } as React.CSSProperties}>
             <TurnBeam target={live && !effects.presentationBusy ? room.turn : null} />
             <div className="felt">
               <div className="felt-inner" />
+            </div>
 
               <div className="board-zone">
                 {room.phase === 'lobby' ? <div className="waiting">
@@ -773,7 +776,6 @@ export default function Home() {
                   </div>
                 </>}
               </div>
-            </div>
 
             {Array.from({
               length: room.settings.seats
@@ -787,17 +789,17 @@ export default function Home() {
                 cardCount = room.game === 'NLH' ? 2 : room.game === 'PLO4' ? 4 : 5,
                 visibleCount = effects.visibleHoleCards(s, cardCount);
               return <div key={s} data-seat-index={s} data-relative-seat={(s - (me?.seat || 0) + room.settings.seats) % room.settings.seats} className={`seat ${p ? 'occupied' : 'open'} ${live && !effects.presentationBusy && p?.id === room.turn ? 'acting' : ''} ${p?.folded && handActive ? 'folded' : ''} ${p?.id === room.me ? 'your-seat' : ''} ${p?.cards?.length ? 'cards-revealed' : 'cards-concealed'} ${cardCount > 2 ? 'omaha-seat' : ''} ${win ? 'winner-seat' : ''}`} data-card-count={cardCount} style={{
+                '--reveal-count': cardCount,
                 left: `clamp(var(--seat-edge-x), ${x}%, calc(100% - var(--seat-edge-x)))`,
                 top: `clamp(var(--seat-edge-y), ${y}%, calc(100% - var(--seat-edge-y)))`
-              }}>
+              } as React.CSSProperties}>
                 {p ? <>
-                  {win && <div className="winner-badge"><Trophy size={10} /> +{fmt(win.wonAmount ?? win.amount)}</div>}
                   {p.id !== room.me && p.inHand && (p.cards?.length || handActive) ? <div className="seat-top" data-reaction-target={enableReactions && room.phase !== 'closed' ? s : undefined} onClick={() => {
                     if (enableReactions && room.phase !== 'closed') reactions.setTarget(reactions.target === s ? null : s);
                   }}>
                     {p.cards?.length ? <div className="hole-cards">
                       {sortedHoleCards(p.cards).slice(0, visibleCount).map((c: number, i: number) => <span className={effects.dealing ? 'arriving-hole-card' : ''} style={{ '--fan-angle': `${(i - (cardCount - 1) / 2) * 9}deg`, '--fan-lift': `${Math.abs(i - (cardCount - 1) / 2) * 3}px` } as React.CSSProperties} key={`${room.handStartedAt || 0}:${i}`}>
-                        <Card value={c} small highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
+                        <Card value={c} small covered={i < Math.min(p.cards.length, visibleCount) - 1} highlight={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.holeCards?.includes(c))} dim={Boolean(effects.resultReady && focusedWinner?.id === p.id && focusedHand?.boardCards?.length && !focusedHand.holeCards.includes(c))} />
                       </span>)}
                     </div> : <div className="hole-cards">
                       {Array.from({

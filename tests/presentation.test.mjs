@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { freeCheckDecision, foldConfirmationValid } from '../lib/client/free-check-fold.mjs';
-import { showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack, boardPlan, slowBoardPlan } from '../lib/table-presentation.mjs';
+import { showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack, boardPlan, slowBoardPlan, seatPosition } from '../lib/table-presentation.mjs';
 test('all-in announcement precedes a slow runout and each run waits for the previous payout', () => {
   const p = showdownTiming(0, 5, 2, 2, [1, 1], true),
     [a, b] = p.runs;
@@ -233,4 +233,26 @@ test('free-check fold confirmation is limited to the current free betting decisi
   assert.equal(freeCheckDecision({...room, legal:{...room.legal,call:50}}), null);
   assert.equal(freeCheckDecision({...room, turn:'other'}), null, 'Queued Check/Fold is not interrupted by a prompt');
   assert.equal(foldConfirmationValid(null, room), false);
+});
+
+
+test('seat bands leave the board corridor clear and rotate with the viewer', () => {
+  for (let seats = 2; seats <= 8; seats++) {
+    for (let viewer = 0; viewer < seats; viewer++) {
+      const positions = Array.from({length: seats}, (_, seat) => seatPosition(seat, viewer, seats));
+      assert.equal(positions[viewer].y, 88);
+      assert.equal(new Set(positions.map(p => `${p.x}:${p.y}`)).size, seats);
+      assert.ok(positions.every(p => p.y === 12 || p.y === 88));
+      for (const width of [320, 390, 844]) {
+        const seatWidth = Math.min(94, (width - 16) / Math.ceil(seats / 2) - 8);
+        for (const p of positions) {
+          assert.ok(p.x / 100 * width - seatWidth / 2 >= 0);
+          assert.ok(p.x / 100 * width + seatWidth / 2 <= width);
+          for (const other of positions) {
+            if (p !== other && p.y === other.y) assert.ok(Math.abs(p.x - other.x) / 100 * width > seatWidth);
+          }
+        }
+      }
+    }
+  }
 });

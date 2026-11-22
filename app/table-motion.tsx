@@ -69,7 +69,6 @@ export function TableMotion({
           <i />
           <i />
         </div>
-        <b>{room.runCount === 2 ? `Run ${payment.run} · ` : ''}{payment.label} +{new Intl.NumberFormat('en-IN').format(payment.amount)}</b>
       </Motion>;
     })}
 

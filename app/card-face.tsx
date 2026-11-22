@@ -14,7 +14,7 @@ const profiles = {
   small: { rank: 32, corner: 21, centre: 29, left: 20, top: 30, suitY: 33, bottomSuitY: 49 },
   'extra-small': { rank: 35, corner: 22, centre: 27, left: 21, top: 32, suitY: 33, bottomSuitY: 49 }
 } as const;
-export function CardFace({rank, suit, size = 'normal', layout = 'corners'}: {rank: string; suit: string; size?: CardSize; layout?: CardLayout}) {
+export function CardFace({rank, suit, size = 'normal', layout = 'corners', covered = false}: {rank: string; suit: string; size?: CardSize; layout?: CardLayout; covered?: boolean}) {
   const p = profiles[size], right = 70 - p.left;
   const pip = (x: number, y: number, width: number) => <path d={paths[suit]} transform={`translate(${x} ${y}) scale(${width / 100})`} />;
   return <svg className="card-face" data-card-size={size} data-card-layout={layout} viewBox="0 0 70 100" aria-hidden="true" focusable="false">
@@ -22,8 +22,8 @@ export function CardFace({rank, suit, size = 'normal', layout = 'corners'}: {ran
       <text x={p.left} y={p.top} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8">{rank}</text>
       {layout === 'corners' && pip(p.left - p.corner / 2, p.suitY, p.corner)}
       {layout === 'community' && pip(35 - p.centre / 2, 50 - p.centre / 2, p.centre)}
-      {layout === 'corners' && pip(right - p.corner / 2, p.bottomSuitY, p.corner)}
-      <text x={right} y="94" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8">{rank}</text>
+      {!covered && layout === 'corners' && pip(right - p.corner / 2, p.bottomSuitY, p.corner)}
+      {!covered && <text x={right} y="94" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={p.rank} fontWeight="700" letterSpacing="-.8">{rank}</text>}
     </g>
   </svg>;
 }
