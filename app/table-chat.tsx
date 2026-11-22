@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { MessageCircle, X, RefreshCw } from 'lucide-react';
 import { reactionHistoryLabel } from '../lib/reactions.mjs';
-import { seatPosition } from '../lib/table-presentation.mjs';
+import { tableSeatPosition, seatTop } from '../lib/table-presentation.mjs';
 import { type SocialRoom, type useSocial } from '../lib/client/use-social';
 import './table-chat.css';
 type Social = ReturnType<typeof useSocial>;
@@ -21,11 +21,11 @@ export function SpeechBubbles({ room, social }: { room: SocialRoom; social: Soci
   const me = room.players.find((p) => p.id === room.me && !p.left);
   return <div className="speech-layer" >{social.bubbles.map(entry => {
     const player = room.players.find((p) => !p.left && p.seat === entry.sender.seat && p.name === entry.sender.name);
-    const pos = player ? seatPosition(player.seat, me?.seat || 0, room.settings.seats) : { x: 50, y: 15 };
+    const pos = player ? tableSeatPosition(room, player.seat, me?.seat || 0) : { x: 50, y: 15 };
     return <button type="button" onClick={() => {
       flushSync(() => social.openHistory(entry.id));
       document.getElementById('chat-message')?.focus({ preventScroll: true });
-    }} aria-label={`${entry.sender.name}: ${entry.text}. Open table chat`} key={entry.id} data-relative-seat={player ? (player.seat - (me?.seat || 0) + room.settings.seats) % room.settings.seats : undefined} className={`speech-bubble ${player ? 'has-speaker' : ''} ${pos.y > 60 ? 'bubble-above' : 'bubble-below'}`} style={{ left: `clamp(80px, ${pos.x}%, calc(100% - 80px))`, top: `clamp(45px, ${pos.y}%, calc(100% - 45px))` }}>
+    }} aria-label={`${entry.sender.name}: ${entry.text}. Open table chat`} key={entry.id} data-relative-seat={player ? (player.seat - (me?.seat || 0) + room.settings.seats) % room.settings.seats : undefined} className={`speech-bubble ${player ? 'has-speaker' : ''} ${pos.y > 60 ? 'bubble-above' : 'bubble-below'}`} style={{ left: `clamp(80px, ${pos.x}%, calc(100% - 80px))`, top: seatTop(pos.y) }}>
       <span className="speech-bubble-content">{!player && <b>{entry.sender.name} · </b>}{entry.text}</span>
     </button>;
   })}</div>;

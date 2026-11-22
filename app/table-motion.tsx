@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { seatPosition, FLIGHT_MS } from '../lib/table-presentation.mjs';
+import { tableSeatPosition, seatTop, FLIGHT_MS } from '../lib/table-presentation.mjs';
 function Motion({
   at,
   style,
@@ -44,10 +44,10 @@ export function TableMotion({
     </div>}
 
     {dealing && deal.flights.filter((f: any) => now < deal.startedAt + f.arrival).map((f: any) => {
-      const pos = seatPosition(f.seat, mySeat, room.settings.seats);
+      const pos = tableSeatPosition(room, f.seat, mySeat);
       return <Motion key={`${deal.key}:${f.seat}:${f.round}`} at={deal.startedAt + f.at} kind="flying-card" style={{
         '--target-x': `clamp(var(--seat-edge-x), ${pos.x}%, calc(100% - var(--seat-edge-x)))`,
-        '--target-y': `clamp(var(--seat-edge-y), ${pos.y}%, calc(100% - var(--seat-edge-y)))`,
+        '--target-y': seatTop(pos.y),
         animationDuration: `${FLIGHT_MS}ms`
       }}>
         <span>♠</span>
@@ -57,10 +57,10 @@ export function TableMotion({
     {room.phase === 'showdown' && effects.payouts.map((payment: any) => {
       const p = room.players.find((p: any) => p.id === payment.id);
       if (!p || now > payment.at + payment.duration) return null;
-      const pos = seatPosition(p.seat, mySeat, room.settings.seats);
+      const pos = tableSeatPosition(room, p.seat, mySeat);
       return <Motion key={`${room.handStartedAt}:${payment.run}:${payment.label}:${payment.id}`} at={payment.at} kind="pot-transfer" style={{
         '--target-x': `clamp(var(--seat-edge-x), ${pos.x}%, calc(100% - var(--seat-edge-x)))`,
-        '--target-y': `clamp(var(--seat-edge-y), ${pos.y}%, calc(100% - var(--seat-edge-y)))`,
+        '--target-y': seatTop(pos.y),
         animationDuration: `${payment.duration}ms`
       }}>
         <div className="moving-chips">

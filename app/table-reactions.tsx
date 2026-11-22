@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type ComponentType, type CSSProperties } from 'react';
 import { reactionRenderers } from './reaction-art';
 import { REACTIONS, reactionDefinition } from '../lib/reactions.mjs';
-import { seatPosition } from '../lib/table-presentation.mjs';
+import { tableSeatPosition, seatTop } from '../lib/table-presentation.mjs';
 import { type PokerAudio, type PokerSound } from '../lib/poker-audio';
 import { type ReactionEvent, type ReactionRoom, type ReactionPlayer, useReactions } from '../lib/client/use-reactions';
 import './table-reactions.css';
@@ -68,16 +68,16 @@ function ReactionAnimation({ event, room, mySeat, audio }: {
     if (definition && renderer && Date.now() < event.startedAt + definition.impactAt) audio?.play(renderer.sound, event.startedAt - Date.now());
   }, [event.id, event.startedAt, definition?.impactAt, renderer, audio]);
   if (!renderer || !definition) return null;
-  const from = event.from.seat === null ? { x: 50, y: 90 } : seatPosition(event.from.seat, mySeat, room.settings.seats);
-  const to = seatPosition(event.to.seat, mySeat, room.settings.seats);
+  const from = event.from.seat === null ? { x: 50, y: 90 } : tableSeatPosition(room, event.from.seat, mySeat);
+  const to = tableSeatPosition(room, event.to.seat, mySeat);
   const { Animation } = renderer;
   return <div ref={overlay} className={`reaction-overlay reaction-${event.reaction}`} style={{
     '--cheers-side': from.x <= to.x ? -1 : 1,
     '--strike-angle': `${Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI + 90}deg`,
     '--reaction-from-x': `clamp(var(--seat-edge-x), ${from.x}%, calc(100% - var(--seat-edge-x)))`,
-    '--reaction-from-y': `clamp(var(--seat-edge-y), ${from.y}%, calc(100% - var(--seat-edge-y)))`,
+    '--reaction-from-y': seatTop(from.y),
     '--reaction-to-x': `clamp(var(--seat-edge-x), ${to.x}%, calc(100% - var(--seat-edge-x)))`,
-    '--reaction-to-y': `clamp(var(--seat-edge-y), ${to.y}%, calc(100% - var(--seat-edge-y)))`,
+    '--reaction-to-y': seatTop(to.y),
     '--reaction-delay': `${delay}ms`, '--reaction-duration': `${definition.duration}ms`
   } as CSSProperties} aria-hidden="true">
     <Animation />
@@ -98,11 +98,11 @@ export function TableReactions({ room, mySeat, reactions, audio }: {
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape); };
   }, [target, reactions]);
-  const pos = target ? seatPosition(target.seat, mySeat, room.settings.seats) : null;
+  const pos = target ? tableSeatPosition(room, target.seat, mySeat) : null;
   return <>
     {target && pos && room.phase !== 'closed' && <div className={`reaction-picker ${pos.y > 60 ? 'above-seat' : 'below-seat'}`} data-reaction-picker role="dialog" aria-label={`Reactions for ${target.name}`} style={{
       left: `clamp(128px, ${pos.x}%, calc(100% - 128px))`,
-      top: `clamp(12px, calc(${pos.y}% ${pos.y > 60 ? '- 210px' : '+ 38px'}), calc(100% - 190px))`
+      top: `clamp(12px, calc(${seatTop(pos.y)} ${pos.y > 60 ? '- 210px' : '+ 38px'}), calc(100% - 190px))`
     }}>
       <div className="reaction-picker-heading"><span>Send to <b>{target.name}</b></span><button type="button" aria-label="Close reactions" onClick={() => reactions.setTarget(null)}>×</button></div>
       <div className="reaction-choices" aria-busy={reactions.sending}>{Object.values(REACTIONS).map(definition => {

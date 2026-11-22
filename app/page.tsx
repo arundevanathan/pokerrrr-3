@@ -6,7 +6,7 @@ import { ArrowUpRight, Smartphone, Download, History, Layers3, MoreHorizontal, P
 import { useAppViewport } from '../lib/client/use-app-viewport';
 import { PokerAudio } from '../lib/poker-audio';
 import { useTableEffects } from '../lib/use-table-effects';
-import { seatPosition } from '../lib/table-presentation.mjs';
+import { tableSeatPosition, seatTop } from '../lib/table-presentation.mjs';
 import { RunoutVote, RunoutAnnouncement } from './runout-vote';
 import { TableMotion } from './table-motion';
 import { TurnBeam } from './turn-beam';
@@ -725,11 +725,10 @@ export default function Home() {
             </small>}
           </div>
 
-          <div className={`table-stage ${room.runCount === 2 ? 'two-runouts' : ''} ${room.runVote ? 'has-run-vote' : ''}`} style={{ '--seat-columns': Math.ceil(room.settings.seats / 2) } as React.CSSProperties}>
+          <div className={`table-stage ${room.runCount === 2 ? 'two-runouts' : ''} ${room.runVote ? 'has-run-vote' : ''}`} style={{ '--seat-columns': Math.ceil((room.phase === 'lobby' ? room.settings.seats : Math.max(2, visiblePlayers.length)) / 2) } as React.CSSProperties}>
             <TurnBeam target={live && !effects.presentationBusy ? room.turn : null} />
             <div className="felt">
               <div className="felt-inner" />
-            </div>
 
               <div className="board-zone">
                 {room.phase === 'lobby' ? <div className="waiting">
@@ -776,6 +775,7 @@ export default function Home() {
                   </div>
                 </>}
               </div>
+            </div>
 
             {Array.from({
               length: room.settings.seats
@@ -784,14 +784,14 @@ export default function Home() {
                 {
                   x,
                   y
-                } = seatPosition(s, me?.seat || 0, room.settings.seats),
+                } = tableSeatPosition(room, s, me?.seat || 0),
                 win = effects.resultReady ? winners.find((w: any) => w.id === p?.id) : null,
                 cardCount = room.game === 'NLH' ? 2 : room.game === 'PLO4' ? 4 : 5,
                 visibleCount = effects.visibleHoleCards(s, cardCount);
               return <div key={s} data-seat-index={s} data-relative-seat={(s - (me?.seat || 0) + room.settings.seats) % room.settings.seats} className={`seat ${p ? 'occupied' : 'open'} ${live && !effects.presentationBusy && p?.id === room.turn ? 'acting' : ''} ${p?.folded && handActive ? 'folded' : ''} ${p?.id === room.me ? 'your-seat' : ''} ${p?.cards?.length ? 'cards-revealed' : 'cards-concealed'} ${cardCount > 2 ? 'omaha-seat' : ''} ${win ? 'winner-seat' : ''}`} data-card-count={cardCount} style={{
                 '--reveal-count': cardCount,
                 left: `clamp(var(--seat-edge-x), ${x}%, calc(100% - var(--seat-edge-x)))`,
-                top: `clamp(var(--seat-edge-y), ${y}%, calc(100% - var(--seat-edge-y)))`
+                top: seatTop(y)
               } as React.CSSProperties}>
                 {p ? <>
                   {p.id !== room.me && p.inHand && (p.cards?.length || handActive) ? <div className="seat-top" data-reaction-target={enableReactions && room.phase !== 'closed' ? s : undefined} onClick={() => {

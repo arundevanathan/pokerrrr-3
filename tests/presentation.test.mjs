@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { freeCheckDecision, foldConfirmationValid } from '../lib/client/free-check-fold.mjs';
-import { showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack, boardPlan, slowBoardPlan, seatPosition } from '../lib/table-presentation.mjs';
+import { showdownTiming, presentationAt, payoutAwards, payoutEvents, visibleStack, boardPlan, slowBoardPlan, seatPosition, tableSeatPosition } from '../lib/table-presentation.mjs';
 test('all-in announcement precedes a slow runout and each run waits for the previous payout', () => {
   const p = showdownTiming(0, 5, 2, 2, [1, 1], true),
     [a, b] = p.runs;
@@ -236,23 +236,24 @@ test('free-check fold confirmation is limited to the current free betting decisi
 });
 
 
-test('seat bands leave the board corridor clear and rotate with the viewer', () => {
+test('rail positions rotate with the viewer and leave gaps at the board sides', () => {
   for (let seats = 2; seats <= 8; seats++) {
     for (let viewer = 0; viewer < seats; viewer++) {
       const positions = Array.from({length: seats}, (_, seat) => seatPosition(seat, viewer, seats));
-      assert.equal(positions[viewer].y, 88);
+      assert.ok(positions[viewer].y > 85);
       assert.equal(new Set(positions.map(p => `${p.x}:${p.y}`)).size, seats);
-      assert.ok(positions.every(p => p.y === 12 || p.y === 88));
-      for (const width of [320, 390, 844]) {
-        const seatWidth = Math.min(94, (width - 16) / Math.ceil(seats / 2) - 8);
-        for (const p of positions) {
-          assert.ok(p.x / 100 * width - seatWidth / 2 >= 0);
-          assert.ok(p.x / 100 * width + seatWidth / 2 <= width);
-          for (const other of positions) {
-            if (p !== other && p.y === other.y) assert.ok(Math.abs(p.x - other.x) / 100 * width > seatWidth);
-          }
-        }
-      }
+      assert.ok(positions.every(p => Math.abs(p.y - 50) >= 21.9));
+      for (const p of positions) assert.ok(Math.abs(((p.x - 50) / 45) ** 2 + ((p.y - 50) / 44) ** 2 - 1) < 1e-9);
     }
   }
+});
+
+test('occupied rail positions preserve seat order across empty slots and viewers', () => {
+  const room = {phase: 'flop', settings: {seats: 8}, players: [0,2,3,5,6,7].map(seat => ({seat}))};
+  for (const viewer of room.players) {
+    assert.equal(tableSeatPosition(room, viewer.seat, viewer.seat).x, 50 + 45 * Math.cos(Math.PI / 2));
+    assert.equal(tableSeatPosition(room, viewer.seat, viewer.seat).y, 94);
+    assert.equal(new Set(room.players.map(p => JSON.stringify(tableSeatPosition(room, p.seat, viewer.seat)))).size, 6);
+  }
+  assert.deepEqual(tableSeatPosition({...room, phase:'lobby'}, 2, 0), seatPosition(2,0,8));
 });

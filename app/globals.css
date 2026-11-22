@@ -5751,3 +5751,95 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .app.in-game .seat.cards-revealed:not(.your-seat) .hole-cards {
   width: min(100%, calc(29px * (1 + (var(--reveal-count) - 1) * .58)));
 }
+
+/* A wide oval with seats anchored to its rail, leaving the board's sides clear. */
+.app.in-game .table-stage { --felt-half-height: min(39%, 34cqw); --seat-edge-x: 44px; }
+.app.in-game .table-stage.two-runouts { --felt-half-height: min(40%, 38cqw); }
+.app.in-game .table-stage .felt {
+  left: 3%; right: 3%; top: 50%; bottom: auto;
+  height: calc(var(--felt-half-height) * 2);
+  transform: translateY(-50%);
+  border-radius: 50%; border-width: 6px;
+  overflow: hidden;
+}
+.app.in-game .table-stage .felt-inner { border-radius: 50%; }
+.app.in-game .table-stage .seat,
+.app.in-game .table-stage .seat.occupied:not(.your-seat),
+.app.in-game .table-stage .seat.cards-revealed.omaha-seat {
+  width: min(86px, calc((100cqw - 20px) / var(--seat-columns) - 8px));
+}
+.app.in-game .table-stage .board-zone,
+.app.in-game .table-stage:has(.table-awards) .board-zone {
+  inset: 4% 7%;
+  padding: 3px;
+}
+.app.in-game .table-stage .board-cards { width: min(100%, 290px); }
+.app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 210px); }
+.app.in-game .table-stage.two-runouts .runout-board .table-awards {
+  max-height: 44px;
+  overflow-y: auto;
+  width: min(100%, 210px);
+}
+@media (max-height: 600px) {
+  .app.in-game .table-stage { --felt-half-height: 38%; }
+  .app.in-game .table-stage.two-runouts { --felt-half-height: 40%; }
+  .app.in-game .table-stage .board-cards { width: min(100%, 210px); }
+  .app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 165px); }
+}
+.app.in-game .table-stage .seat,
+.app.in-game .table-stage .seat.occupied:not(.your-seat),
+.app.in-game .table-stage .seat.cards-revealed.omaha-seat {
+  width: min(86px, calc((100cqw - 20px) / var(--seat-columns) - 20px));
+}
+.app.in-game .table-stage .board-cards { width: min(100%, 260px); }
+.app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 210px); }
+/* Override the older Omaha reveal width as well as ordinary seat widths. */
+.app.in-game .table-stage .seat.occupied:not(.your-seat).cards-revealed.omaha-seat {
+  width: min(86px, calc((100cqw - 20px) / var(--seat-columns) - 20px));
+}
+.app.in-game .table-stage .runout-board .table-awards {
+  width: min(100%, 120px);
+}
+.app.in-game .table-stage.two-runouts .runout-board .table-awards {
+  width: min(100%, 150px);
+}
+/* Last betting actions have finished once the result is being presented. */
+.app.in-game .table-stage:has(.table-awards) .player-action { display: none; }
+/* Reserve the inward half of the rail seats before placing the pot/results. */
+.app.in-game .table-stage:has(.table-awards) { --felt-half-height: min(40%, 38cqw); }
+.app.in-game .table-stage .board-zone,
+.app.in-game .table-stage:has(.table-awards) .board-zone { inset: 50px 7% 30px; }
+.app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 180px); }
+.app.in-game .table-stage.two-runouts .pot-label { display: none; }
+.app.in-game .table-stage.two-runouts .pot-amount { font-size: 22px; line-height: 1.1; }
+.app.in-game .table-stage.two-runouts .runout-board .table-awards { width: min(100%, 120px); max-height: 30px; }
+@media (max-width: 360px) {
+  .app.in-game .table-stage .board-cards { width: min(100%, 210px); }
+  .app.in-game .table-stage.two-runouts { --felt-half-height: min(42%, 42cqw); }
+  .app.in-game .table-stage.two-runouts .board-cards { width: min(100%, 165px); }
+  .app.in-game .table-stage .runout-board .table-awards,
+  .app.in-game .table-stage.two-runouts .runout-board .table-awards { width: min(100%, 90px); }
+}
+/* Place run results beside their board to fit both runs inside the wide felt. */
+.app.in-game .table-stage.two-runouts .runout-boards { width: min(100%, 280px); }
+.app.in-game .table-stage.two-runouts .runout-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  align-items: center;
+  width: 100%;
+  gap: 4px;
+}
+.app.in-game .table-stage.two-runouts .run-board-label { grid-column: 1 / -1; text-align: center; }
+.app.in-game .table-stage.two-runouts .board-cards { width: 100%; }
+.app.in-game .table-stage.two-runouts .runout-board .table-awards { width: 90px; max-height: 54px; }
+.app.in-game .table-stage .table-winner-name { max-width: 100%; padding: 0; white-space: normal; }
+.app.in-game .table-stage .table-winning-hand { display: block; overflow-wrap: anywhere; }
+@media (max-width: 360px) {
+  .app.in-game .table-stage:not(.two-runouts) .board-cards { width: min(100%, 190px); }
+  .app.in-game .table-stage.two-runouts .runout-board { grid-template-columns: minmax(0, 1fr) 76px; }
+  .app.in-game .table-stage.two-runouts .runout-board .table-awards { width: 76px; }
+}
+.app.in-game .table-stage.two-runouts .board-cards {
+  width: calc(100% - 16px);
+  justify-self: end;
+}
