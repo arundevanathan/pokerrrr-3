@@ -464,6 +464,39 @@ test('player actions expose distinct sound events with sequence numbers', () => 
   assert.equal(r.actionEvents.at(-1).type, 'allin');
   assert.ok(!JSON.stringify(view(r, token).actionEvents).includes(p.id));
 });
+
+test('betting audio distinguishes opening bet size, raises and all-in calls', () => {
+  function flop() {
+    const r = room(2);
+    startHand(r);
+    act(r, r.turn, 'call');
+    act(r, r.turn, 'check');
+    assert.equal(r.phase, 'flop');
+    return r;
+  }
+  for (const [amount, sound] of [[10, 'call'], [14, 'call'], [15, 'raise'], [20, 'raise']]) {
+    const r = flop();
+    assert.equal(legal(r, r.turn).pot, 20);
+    act(r, r.turn, 'raise', amount);
+    assert.equal(r.actionEvents.at(-1).sound, sound);
+    assert.equal(r.actionEvents.at(-1).type, 'raise');
+    act(r, r.turn, 'call');
+    assert.equal(r.actionEvents.at(-1).sound, 'call');
+  }
+  const r = flop();
+  act(r, r.turn, 'raise', 10);
+  act(r, r.turn, 'raise', 20);
+  assert.equal(r.actionEvents.at(-1).sound, 'raise');
+  const allIn = flop();
+  act(allIn, allIn.turn, 'raise', legal(allIn, allIn.turn).max);
+  assert.equal(allIn.actionEvents.at(-1).sound, 'raise');
+  assert.equal(allIn.actionEvents.at(-1).type, 'allin');
+  act(allIn, allIn.turn, 'call');
+  assert.equal(allIn.actionEvents.at(-1).sound, 'call');
+  assert.equal(allIn.actionEvents.at(-1).type, 'allin');
+  assert.equal(view(allIn, token).actionEvents.at(-1).sound, 'call');
+});
+
 function allInVote(game = 'NLH', prefix = 0) {
   const r = room(2);
   r.completed = game === 'NLH' ? 0 : game === 'PLO4' ? 2 : 4;

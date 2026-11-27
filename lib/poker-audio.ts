@@ -1,6 +1,7 @@
 import { REACTIONS } from './reactions.mjs';
 const gameSamples = {
   call: '/sounds/call.wav',
+  raise: '/sounds/raise.wav',
   check: '/sounds/check.wav',
   deal: '/sounds/deal.wav',
   win: '/sounds/win.wav',
@@ -73,7 +74,7 @@ export class PokerAudio {
     const at = ctx.currentTime + Math.max(0, delayMs) / 1000;
     const social = Object.hasOwn(REACTIONS, kind) ? REACTIONS[kind as keyof typeof REACTIONS] : null;
     const impact = ctx.currentTime + Math.max(0, delayMs + (social?.impactAt || 0)) / 1000;
-    const sample = kind === 'raise' || kind === 'allin' ? 'call' : kind;
+    const sample = kind === 'allin' ? 'call' : kind;
     if (Object.hasOwn(gameSamples, sample)) {
       const generation = this.generation;
       void this.loadSample(ctx, sample as GameSample).then(buffer => {

@@ -138,7 +138,7 @@ export function useTableEffects(room: any, audio: PokerAudio | null, hasAutomati
     const last = heard.current;
     if (!silence.current && last?.code === room.code) {
       const actions = (room.actionEvents || []).filter((e: any) => e.type !== 'fold' && e.seq > last.seq && e.at > audibleAfter.current);
-      actions.forEach((e: any, i: number) => audio?.play(e.type, i * 75));
+      actions.forEach((e: any, i: number) => audio?.play(e.sound ?? e.type, i * 75));
       if (turnOpportunity && turnOpportunity !== last.turnOpportunity && !hasAutomaticAction) {
         const delay = actions.length ? (actions.length - 1) * 75 + 145 : 0;
         audio?.play('your-turn', delay);

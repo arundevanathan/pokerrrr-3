@@ -5960,3 +5960,12 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .app.in-game .table-stage .board-zone,
 .app.in-game .table-stage:has(.table-awards) .board-zone { justify-content: center; }
 .app.in-game .table-stage .felt:has(.table-awards) { overflow: visible; }
+
+
+/* Overlapping personal Omaha cards must remain opaque during showdown.
+   Preserve their index exposure and stacking order; mute colour, not alpha. */
+.app.in-game .personal-hole-cards:is(.cards-4, .cards-5) .card.dimmed-card {
+  opacity: 1;
+  filter: saturate(.45) brightness(.65);
+  transition: filter .3s;
+}
