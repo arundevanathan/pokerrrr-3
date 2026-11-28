@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.1.16 — 22 November 2026
+
+- Align empty join seats with occupied seats before sitting.
+- Improve opponent reveal legibility and explicit sizing for iOS compatibility.
+- Keep own hole cards consistent between active play and showdown.
+- Add pronounced cross-platform shading to suit artwork.
+- Display split-pot and run-it-twice results without scrolling.
+
+[Release notes](docs/releases/v2.1.16.md)
+
 ## v2.1.15 — 22 November 2026
 
 - Give hole and revealed cards corner rank/suit indices with blank centres.

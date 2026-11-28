@@ -248,6 +248,13 @@ export default function Home() {
   }
   useEffect(() => {
     const unlockSocial = () => socialAudio.current?.unlock();
+    const recoverAudio = () => {
+      audio.current?.recover();
+      socialAudio.current?.recover();
+    };
+    document.addEventListener('visibilitychange', recoverAudio);
+    window.addEventListener('focus', recoverAudio);
+    window.addEventListener('pageshow', recoverAudio);
     document.addEventListener('pointerdown', unlockSocial);
     document.addEventListener('keydown', unlockSocial);
     const enabled = localStorage.getItem('hg-sound') !== 'off';
@@ -266,6 +273,9 @@ export default function Home() {
     return () => {
       clearInterval(timer);
       clearTimeout(identityRetry.current);
+      document.removeEventListener('visibilitychange', recoverAudio);
+      window.removeEventListener('focus', recoverAudio);
+      window.removeEventListener('pageshow', recoverAudio);
       document.removeEventListener('pointerdown', unlockSocial);
       document.removeEventListener('keydown', unlockSocial);
       window.removeEventListener('beforeinstallprompt', installer);

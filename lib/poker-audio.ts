@@ -1,6 +1,7 @@
 import { REACTIONS } from './reactions.mjs';
 const gameSamples = {
   call: '/sounds/call.wav',
+  raise: '/sounds/raise.wav',
   check: '/sounds/check.wav',
   deal: '/sounds/deal.wav',
   win: '/sounds/win.wav',
@@ -20,12 +21,20 @@ export class PokerAudio {
     try {
       const C = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!C) return;
-      this.context ??= new C();
+      if (!this.context || this.context.state === 'closed') {
+        this.cancel();
+        this.samples.clear();
+        this.context = new C();
+      }
       if (this.preloadGameSounds) {
         for (const kind of Object.keys(gameSamples) as GameSample[]) void this.loadSample(this.context, kind);
       }
-      if (this.context?.state === 'suspended') void this.context.resume().catch(() => { });
+      if (this.context.state !== 'running') void this.context.resume().catch(() => { });
     } catch {/* Audio is optional on browsers without Web Audio. */ }
+  }
+  recover() {
+    // Do not create an audio context before the first user gesture.
+    if (this.context && this.enabled && !document.hidden) this.unlock();
   }
   setEnabled(value: boolean) {
     this.enabled = value;
@@ -61,11 +70,11 @@ export class PokerAudio {
   play(kind: PokerSound, delayMs = 0) {
     const ctx = this.context;
     if (!this.enabled || !ctx || document.hidden) return;
-    if (ctx.state === 'suspended') {
+    if (ctx.state !== 'running' && ctx.state !== 'closed') {
       const generation = this.generation,
         target = performance.now() + delayMs;
       void ctx.resume().then(() => {
-        if (this.generation === generation) this.play(kind, Math.max(0, target - performance.now()));
+        if (this.generation === generation && this.context === ctx && ctx.state === 'running' && performance.now() <= target + 350) this.play(kind, Math.max(0, target - performance.now()));
       }).catch(() => { });
       return;
     }
@@ -73,7 +82,7 @@ export class PokerAudio {
     const at = ctx.currentTime + Math.max(0, delayMs) / 1000;
     const social = Object.hasOwn(REACTIONS, kind) ? REACTIONS[kind as keyof typeof REACTIONS] : null;
     const impact = ctx.currentTime + Math.max(0, delayMs + (social?.impactAt || 0)) / 1000;
-    const sample = kind === 'raise' || kind === 'allin' ? 'call' : kind;
+    const sample = kind === 'allin' ? 'call' : kind;
     if (Object.hasOwn(gameSamples, sample)) {
       const generation = this.generation;
       void this.loadSample(ctx, sample as GameSample).then(buffer => {

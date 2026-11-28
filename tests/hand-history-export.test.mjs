@@ -48,7 +48,16 @@ test('a folded player can voluntarily reveal after a hand and the table sees onl
   const value = room();
   const folded = value.players.find(player => player.id === 'folder');
   finish(value, true, 2000);
+  assert.equal(view(value, host).players.find(p => p.name === 'Folder').cards, undefined);
   command(value, folded.id, { type: 'reveal_cards' }, 2500);
+  const publicPlayers = view(value, host).players;
+  assert.deepEqual(publicPlayers.find(p => p.name === 'Folder').cards, folded.cards);
+  assert.equal(publicPlayers.find(p => p.name === 'Friend').cards, undefined);
+  command(value, host, { type: 'reveal_cards' }, 2501);
+  assert.deepEqual(view(value, 'friend').players.find(p => p.name === 'Host').cards, value.players.find(p => p.id === host).cards);
+  const next = structuredClone(value);
+  startHand(next, 9000);
+  assert.equal(view(next, host).players.find(p => p.name === 'Folder').cards, undefined);
   const publicHistory = view(value, host).history[0];
   assert.ok(publicHistory.showdown.some(player => player.name === 'Folder'));
   assert.deepEqual(publicHistory.showdown.find(player => player.name === 'Folder').cards, folded.cards);

@@ -1,0 +1,11 @@
+{
+  "tag": "v2.1.16",
+  "commit": "cde3c98e6a33bb54fae793d80cf0305b4ea63c27",
+  "workerVersion": "92fe5754-148b-4d18-9920-f02ae1dbb562",
+  "deploymentId": "6580704a-47ca-4eae-a020-2936972cf5ae",
+  "rollbackVersion": "985636a7-f8a4-45e4-9b76-aa94023aeec7",
+  "verifiedAt": "2026-11-22T16:13:00.236Z",
+  "productionUrl": "https://dunzo-club.arun-devanathan.workers.dev/",
+  "trafficPercent": 100,
+  "validation": "User approved complete staging iteration. 158 tests, TypeScript, production isolation test, production build/artifact guard and full local production multiplayer smoke passed: 8 hands, 3 variants, private views, reconnect/restart, chat/reactions, history, accounting and staging-data isolation. Browser-rendered three-way split summaries in both runs checked at320px and390px. iOS reveal workaround was based on sizing diagnosis; no direct iPhone execution by agent. Live production health matched exact release commit and multiplayer readiness. Production namespace retained."
+}
