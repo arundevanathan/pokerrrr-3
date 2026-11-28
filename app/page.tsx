@@ -672,29 +672,6 @@ export default function Home() {
   const rabbitOpen = room?.phase === 'showdown' && room?.rabbitHunt && !room.rabbitHunt.requestedBy && !room.rabbitHunt.expiredAt && rabbitRemaining > 0;
   const waitingCall = Math.min(me?.stack || 0, Math.max(0, Math.max(0, ...(room?.players || []).filter((p: any) => p.inHand && !p.folded).map((p: any) => p.bet || 0)) - (me?.bet || 0)));
   const displayedCall = myTurn ? (l?.call || 0) : waitingCall;
-  const callButton = useRef<HTMLButtonElement>(null);
-  const previousCall = useRef<{ key: string; amount: number; myTurn: boolean; pending: boolean } | null>(null);
-  const callScope = live && me?.inHand && !me.folded && !me.left && !me.away && me.stack > 0
-    ? `${room.code}:${room.handStartedAt}:${room.phase}:${me.id}` : '';
-  useEffect(() => {
-    const old = previousCall.current;
-    if (!callScope || (!demo.current && connection !== 'connected') || document.hidden) {
-      previousCall.current = null;
-      return;
-    }
-    const same = old !== null && old.key === callScope;
-    const increased = same && displayedCall > old.amount;
-    const pending = displayedCall > 0 && Boolean(increased || (same && old.pending));
-    const pulse = pending && (increased || (myTurn && !old?.myTurn));
-    previousCall.current = { key: callScope, amount: displayedCall, myTurn, pending: pending && !myTurn };
-    if (!pulse || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animation = callButton.current?.animate?.([
-      { boxShadow: 'inset 0 0 0 2px #b8e0ff, 0 0 12px #8dc6ff' },
-      { boxShadow: 'inset 0 0 0 0px transparent, 0 0 0px transparent' }
-    ], { duration: 520, iterations: 2, easing: 'ease-out' });
-    return () => animation?.cancel();
-  }, [callScope, displayedCall, myTurn, connection]);
-
   const canQueueAction = Boolean(!myTurn && me?.inHand && !me.folded && !me.away && me.stack > 0);
   const clampRaise = (v: number) => Math.min(raiseMax, Math.max(raiseMin, Math.round(v || raiseMin)));
   const personalHand = <div className="personal-hand" aria-label="Your cards">
@@ -969,7 +946,7 @@ export default function Home() {
                   </div>
                   <div className="action-buttons">
                     <button className="fold" disabled={controlsBusy || (myTurn && !l) || (!myTurn && !canQueueAction)} aria-pressed={!myTurn && preaction === (displayedCall ? 'fold' : 'check-fold')} onClick={() => myTurn ? requestFold() : selectPreaction(displayedCall ? 'fold' : 'check-fold')}>{!myTurn && !displayedCall ? 'Check / Fold' : 'Fold'}</button>
-                    <button ref={callButton} className={`secondary check-call${displayedCall > 0 ? ' is-call' : ''}`} disabled={controlsBusy || (myTurn && !l) || (!myTurn && (!canQueueAction || Boolean(displayedCall)))} aria-pressed={!myTurn && preaction === 'check'} onClick={() => myTurn ? send(l?.call ? 'call' : 'check') : selectPreaction('check')}>{displayedCall ? `Call ${fmt(displayedCall)}` : 'Check'}</button>
+                    <button className={`secondary check-call${displayedCall > 0 ? ' is-call' : ''}`} disabled={controlsBusy || (myTurn && !l) || (!myTurn && (!canQueueAction || Boolean(displayedCall)))} aria-pressed={!myTurn && preaction === 'check'} onClick={() => myTurn ? send(l?.call ? 'call' : 'check') : selectPreaction('check')}>{displayedCall ? `Call ${fmt(displayedCall)}` : 'Check'}</button>
                     <button className="primary" disabled={!myTurn || controlsBusy || !l?.canRaise || !raiseValid} onClick={() => void send('raise', { amount: raise })}>
                       <span className="raise-button-label">Raise</span>
                       <span className="raise-button-amount">{myTurn && l?.canRaise ? fmt(raise) : '—'}</span>
