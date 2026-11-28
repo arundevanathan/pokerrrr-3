@@ -5969,3 +5969,14 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   filter: saturate(.45) brightness(.65);
   transition: filter .3s;
 }
+
+
+/* Check and Call share a fixed target, but a paid action is visually distinct. */
+.in-game .action-buttons > .check-call.is-call {
+  background: #225b94;
+  border-color: #8dc6ff;
+  color: #fff;
+}
+.in-game .action-buttons > .check-call.is-call:hover:not(:disabled) {
+  background: #2d6eaf;
+}
