@@ -1,0 +1,11 @@
+{
+  "tag": "v2.1.17",
+  "commit": "bed8575fab6c4130bcf3ff3185ec3f0a01a4b55a",
+  "workerVersion": "4dd5d5cf-77c5-4e41-b6d6-e190df2dcd18",
+  "deploymentId": "cc66a229-4185-422e-9262-b16135c5a59a",
+  "rollbackVersion": "92fe5754-148b-4d18-9920-f02ae1dbb562",
+  "verifiedAt": "2026-11-28T10:04:08Z",
+  "productionUrl": "https://dunzo-club.arun-devanathan.workers.dev/",
+  "trafficPercent": 100,
+  "validation": "User-approved staging changes. 77 local regression tests passed; PR checks passed; Cloudflare production build and artifact guard passed. Live health confirmed exact source commit, production environment and multiplayer readiness. Existing Durable Object namespace retained. Real-device audio recovery and visual checks remain manual."
+}
