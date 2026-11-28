@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.1.17 — 28 November 2026
+
+- Keep overlapping showdown hole cards opaque and winning indices legible.
+- Add a distinct twelve-layer chip sound for significant betting actions.
+- Restore audio after phone calls and app interruptions.
+- Use a static blue Call button and green Check button.
+- Show voluntarily revealed cards on the table and in hand history.
+
+[Release notes](docs/releases/v2.1.17.md)
+
 ## v2.1.16 — 22 November 2026
 
 - Align empty join seats with occupied seats before sitting.
